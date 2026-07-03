@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:gravity="center">
+
+    <View
+        android:id="@+id/dotCircle"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:background="@drawable/dot_circle" />
+
+    <TextView
+        android:id="@+id/dotLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="dot"
+        android:textColor="@color/white"
+        android:textSize="11sp"
+        android:background="#AA0F172A"
+        android:paddingLeft="4dp"
+        android:paddingRight="4dp"
+        android:layout_marginTop="2dp" />
+</LinearLayout>
