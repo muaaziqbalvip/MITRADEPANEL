@@ -18,7 +18,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Find ZIP File
+      - name: Find ZIP
         id: zip
         run: |
           ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
@@ -29,17 +29,22 @@ jobs:
           mkdir extracted
           unzip -o "${{ steps.zip.outputs.zip }}" -d extracted
 
-      - name: Move Folder Contents to Root
+      - name: Remove GitHub Workflow Folder
+        run: |
+          rm -rf extracted/.github
+          find extracted -type d -name ".github" -exec rm -rf {} +
+
+      - name: Copy Files to Repository Root
         run: |
           INNER=$(find extracted -mindepth 1 -maxdepth 1 -type d | head -n 1)
 
           if [ -n "$INNER" ]; then
-            cp -r "$INNER"/. .
+            cp -rf "$INNER"/. .
           else
-            cp -r extracted/. .
+            cp -rf extracted/. .
           fi
 
-      - name: Remove ZIP & Temp Folder
+      - name: Cleanup
         run: |
           rm -rf extracted
           rm -f *.zip
