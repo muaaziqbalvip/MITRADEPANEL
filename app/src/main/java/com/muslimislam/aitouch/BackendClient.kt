@@ -10,10 +10,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
-/**
- * A single AI-decided action to perform on screen.
- * type: "tap" | "long_press" | "type_text" | "swipe" | "none"
- */
 data class AiAction(
     val type: String,
     val dotId: String? = null,
@@ -32,19 +28,6 @@ object BackendClient {
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    /**
-     * Sends screenshot (base64 JPEG), current dots, and the saved one-time prompt
-     * to the HF Space backend. Expects a JSON response describing which actions
-     * to perform, referencing dots by id/name or by raw coordinates.
-     *
-     * Expected backend response shape:
-     * {
-     *   "actions": [
-     *     {"type": "tap", "dot_id": "xxxx"},
-     *     {"type": "type_text", "dot_id": "yyyy", "text": "MashaAllah"}
-     *   ]
-     * }
-     */
     fun analyze(context: Context, imageBase64: String, dotsJson: String, prompt: String): List<AiAction>? {
         val backendUrl = AppStore.loadBackendUrl(context)
         val groqKey = AppStore.loadGroqKey(context)
@@ -66,11 +49,19 @@ object BackendClient {
 
         return try {
             client.newCall(request).execute().use { response ->
+                val responseText = response.body?.string()
                 if (!response.isSuccessful) {
-                    postToast(context, "Backend error: ${response.code}")
+                    val errorDetail = try {
+                        responseText?.let { JSONObject(it).optString("error", "") } ?: ""
+                    } catch (_: Exception) { "" }
+                    val msg = if (errorDetail.isNotBlank())
+                        "Backend error ${response.code}: $errorDetail"
+                    else
+                        "Backend error: ${response.code}"
+                    postToast(context, msg)
                     return null
                 }
-                val responseText = response.body?.string() ?: return null
+                if (responseText == null) return null
                 parseActions(responseText)
             }
         } catch (e: Exception) {
