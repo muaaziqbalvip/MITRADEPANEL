@@ -13,19 +13,10 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import java.util.UUID
 import kotlin.math.roundToInt
 
-/**
- * Foreground service that draws:
- *  1) A small draggable control panel (Add Dot / AI Run / Minimize / Close)
- *  2) User-added "touching dots" which can be dragged and then locked in place
- *
- * When "AI Run" is tapped, it triggers a screenshot capture + sends it,
- * along with dot positions/names and the ONE-TIME saved prompt, to the
- * HF Space backend. The backend replies with which dot/action to perform,
- * and TapAccessibilityService executes the real tap/gesture.
- */
 class OverlayService : Service() {
 
     private lateinit var windowManager: WindowManager
@@ -69,8 +60,6 @@ class OverlayService : Service() {
             @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
     }
 
-    // ---------------- Control Panel ----------------
-
     private fun showPanel() {
         val inflater = LayoutInflater.from(this)
         val view = inflater.inflate(R.layout.control_panel, null)
@@ -105,8 +94,6 @@ class OverlayService : Service() {
         windowManager.addView(view, params)
     }
 
-    // ---------------- Dots ----------------
-
     private fun promptNewDotName() {
         val inflater = LayoutInflater.from(this)
         val dialogView = inflater.inflate(R.layout.dialog_dot_name, null)
@@ -115,7 +102,7 @@ class OverlayService : Service() {
         val dialog = AlertDialog.Builder(this, androidx.appcompat.R.style.Theme_AppCompat_Dialog_Alert)
             .setTitle("Naya Touching Dot")
             .setView(dialogView)
-            .setPositiveButton("Add Karo") { _, _ ->
+            .setPositiveButton("Add Karo") { d, _ ->
                 val name = editText.text.toString().trim().ifEmpty { "dot${dots.size + 1}" }
                 val dot = TouchDot(
                     id = UUID.randomUUID().toString(),
@@ -127,11 +114,14 @@ class OverlayService : Service() {
                 dots.add(dot)
                 addDotView(dot)
                 persistDots()
+                d.dismiss()
+                Toast.makeText(this@OverlayService, "✓ Dot add: $name", Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton("Cancel") { d, _ ->
+                d.dismiss()
+            }
             .create()
 
-        dialog.window?.setType(overlayType())
         dialog.show()
     }
 
@@ -173,8 +163,10 @@ class OverlayService : Service() {
 
         view.setOnTouchListener { _, event ->
             if (dot.locked) {
-                // Locked dots: only respond to long-press to unlock / rename, ignore drag
-                return@setOnTouchListener handleLockedDotTap(view, dot, event)
+                if (event.action == MotionEvent.ACTION_UP) {
+                    showDotMenu(view, dot)
+                }
+                return@setOnTouchListener true
             }
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
@@ -198,7 +190,6 @@ class OverlayService : Service() {
                 }
                 MotionEvent.ACTION_UP -> {
                     if (!moved) {
-                        // Simple tap on unlocked dot -> offer lock/rename/delete menu
                         showDotMenu(view, dot)
                     } else {
                         persistDots()
@@ -210,35 +201,35 @@ class OverlayService : Service() {
         }
     }
 
-    private fun handleLockedDotTap(view: View, dot: TouchDot, event: MotionEvent): Boolean {
-        if (event.action == MotionEvent.ACTION_UP) {
-            showDotMenu(view, dot)
-        }
-        return true
-    }
-
     private fun showDotMenu(view: View, dot: TouchDot) {
         val options = if (dot.locked)
-            arrayOf("Unlock (move karne do)", "Rename", "Delete")
+            arrayOf("Unlock", "Rename", "Delete")
         else
-            arrayOf("Lock (fix kar do)", "Rename", "Delete")
+            arrayOf("Lock", "Rename", "Delete")
 
         val dialog = AlertDialog.Builder(this, androidx.appcompat.R.style.Theme_AppCompat_Dialog_Alert)
             .setTitle(dot.name)
-            .setItems(options) { _, which ->
+            .setItems(options) { d, which ->
                 when (which) {
                     0 -> {
                         dot.locked = !dot.locked
                         updateDotAppearance(view, dot)
                         persistDots()
-                        Toast.makeText(this, if (dot.locked) "Dot lock ho gaya" else "Dot unlock ho gaya", Toast.LENGTH_SHORT).show()
+                        d.dismiss()
+                        Toast.makeText(this, if (dot.locked) "🔒 Locked" else "🔓 Unlocked", Toast.LENGTH_SHORT).show()
                     }
-                    1 -> renameDot(view, dot)
-                    2 -> deleteDot(view, dot)
+                    1 -> {
+                        d.dismiss()
+                        renameDot(view, dot)
+                    }
+                    2 -> {
+                        d.dismiss()
+                        deleteDot(view, dot)
+                    }
                 }
             }
             .create()
-        dialog.window?.setType(overlayType())
+
         dialog.show()
     }
 
@@ -251,17 +242,21 @@ class OverlayService : Service() {
         val dialog = AlertDialog.Builder(this, androidx.appcompat.R.style.Theme_AppCompat_Dialog_Alert)
             .setTitle("Naam Badlo")
             .setView(dialogView)
-            .setPositiveButton("Save") { _, _ ->
+            .setPositiveButton("Save") { d, _ ->
                 val newName = editText.text.toString().trim()
                 if (newName.isNotEmpty()) {
                     dot.name = newName
                     view.findViewById<TextView>(R.id.dotLabel).text = newName
                     persistDots()
+                    d.dismiss()
+                    Toast.makeText(this@OverlayService, "✓ Renamed: $newName", Toast.LENGTH_SHORT).show()
                 }
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton("Cancel") { d, _ ->
+                d.dismiss()
+            }
             .create()
-        dialog.window?.setType(overlayType())
+
         dialog.show()
     }
 
@@ -270,35 +265,32 @@ class OverlayService : Service() {
         dotViews.remove(dot.id)
         dots.remove(dot)
         persistDots()
+        Toast.makeText(this, "✓ Dot deleted", Toast.LENGTH_SHORT).show()
     }
 
     private fun persistDots() {
         AppStore.saveDots(this, dots)
     }
 
-    // ---------------- AI Run ----------------
-
     private fun runAiOnScreen() {
         if (dots.isEmpty()) {
-            Toast.makeText(this, "Pehle kam az kam ek dot add karein", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "❌ Pehle dot add karein", Toast.LENGTH_SHORT).show()
             return
         }
         if (!ScreenCaptureService.isReady) {
-            Toast.makeText(this, "Screen capture permission ready nahi. App dobara kholein.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "❌ Screen capture ready nahi", Toast.LENGTH_LONG).show()
             return
         }
-        Toast.makeText(this, "AI screen process kar raha hai...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "⏳ Processing...", Toast.LENGTH_SHORT).show()
 
-        // Hide panel + dots briefly so they don't appear in the screenshot itself
         setOverlayVisibility(View.INVISIBLE)
 
         val intent = Intent(this, ScreenCaptureService::class.java)
         intent.action = ScreenCaptureService.ACTION_CAPTURE_AND_ANALYZE
         intent.putExtra(ScreenCaptureService.EXTRA_DOTS_JSON, dotsToJsonString())
         intent.putExtra(ScreenCaptureService.EXTRA_PROMPT, AppStore.loadPrompt(this))
-        startService(intent)
+        ContextCompat.startForegroundService(this, intent)
 
-        // Restore visibility shortly after capture is triggered
         android.os.Handler(mainLooper).postDelayed({
             setOverlayVisibility(View.VISIBLE)
         }, 900)
@@ -314,8 +306,6 @@ class OverlayService : Service() {
         dots.forEach { arr.put(it.toJson()) }
         return arr.toString()
     }
-
-    // ---------------- Drag helper for panel itself ----------------
 
     private fun makeDraggable(handle: View, container: View, params: WindowManager.LayoutParams) {
         var initialX = 0
@@ -343,8 +333,6 @@ class OverlayService : Service() {
         }
     }
 
-    // ---------------- Foreground Notification ----------------
-
     private fun startForegroundNotif() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -354,8 +342,8 @@ class OverlayService : Service() {
             nm.createNotificationChannel(channel)
         }
         val notif = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("AI Touch chal raha hai")
-            .setContentText("Panel aur dots active hain")
+            .setContentTitle("AI Touch Active")
+            .setContentText("Dots: ${dots.size}")
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .setOngoing(true)
             .build()
