@@ -104,18 +104,24 @@ class OverlayService : Service() {
             .setView(dialogView)
             .setPositiveButton("Add Karo") { d, _ ->
                 val name = editText.text.toString().trim().ifEmpty { "dot${dots.size + 1}" }
-                val dot = TouchDot(
-                    id = UUID.randomUUID().toString(),
-                    name = name,
-                    x = 300f,
-                    y = 500f,
-                    locked = false
-                )
-                dots.add(dot)
-                addDotView(dot)
-                persistDots()
                 d.dismiss()
-                Toast.makeText(this@OverlayService, "✓ Dot add: $name", Toast.LENGTH_SHORT).show()
+                android.os.Handler(mainLooper).postDelayed({
+                    try {
+                        val dot = TouchDot(
+                            id = UUID.randomUUID().toString(),
+                            name = name,
+                            x = 300f,
+                            y = 500f,
+                            locked = false
+                        )
+                        dots.add(dot)
+                        addDotView(dot)
+                        persistDots()
+                        Toast.makeText(this@OverlayService, "✓ Dot add: $name", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(this@OverlayService, "❌ Error: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
+                }, 250)
             }
             .setNegativeButton("Cancel") { d, _ ->
                 d.dismiss()
@@ -127,27 +133,31 @@ class OverlayService : Service() {
     }
 
     private fun addDotView(dot: TouchDot) {
-        val inflater = LayoutInflater.from(this)
-        val view = inflater.inflate(R.layout.dot_view, null)
-        val label = view.findViewById<TextView>(R.id.dotLabel)
-        label.text = dot.name
-        updateDotAppearance(view, dot)
+        try {
+            val inflater = LayoutInflater.from(this)
+            val view = inflater.inflate(R.layout.dot_view, null)
+            val label = view.findViewById<TextView>(R.id.dotLabel)
+            label.text = dot.name
+            updateDotAppearance(view, dot)
 
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            overlayType(),
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT
-        )
-        params.gravity = Gravity.TOP or Gravity.START
-        params.x = dot.x.roundToInt()
-        params.y = dot.y.roundToInt()
+            val params = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                overlayType(),
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                PixelFormat.TRANSLUCENT
+            )
+            params.gravity = Gravity.TOP or Gravity.START
+            params.x = dot.x.roundToInt()
+            params.y = dot.y.roundToInt()
 
-        windowManager.addView(view, params)
-        dotViews[dot.id] = view
+            windowManager.addView(view, params)
+            dotViews[dot.id] = view
 
-        setupDotTouchBehavior(view, params, dot)
+            setupDotTouchBehavior(view, params, dot)
+        } catch (e: Exception) {
+            Toast.makeText(this, "❌ Dot view error: ${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun updateDotAppearance(view: View, dot: TouchDot) {
