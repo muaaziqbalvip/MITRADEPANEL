@@ -19,7 +19,7 @@ import kotlin.math.roundToInt
 
 class OverlayService : Service() {
 
-    private lateinit var windowManager: WindowManager
+    private var windowManager: WindowManager? = null
     private var panelView: View? = null
     private val dotViews = mutableMapOf<String, View>()
     private val dots = mutableListOf<TouchDot>()
@@ -32,12 +32,14 @@ class OverlayService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        isRunning = true
-        windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        startForegroundNotif()
-        dots.addAll(AppStore.loadDots(this))
-        showPanel()
-        dots.forEach { addDotView(it) }
+        safe("onCreate") {
+            isRunning = true
+            windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            startForegroundNotif()
+            dots.addAll(AppStore.loadDots(this))
+            showPanel()
+            dots.forEach { addDotView(it) }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -49,8 +51,23 @@ class OverlayService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         isRunning = false
-        panelView?.let { runCatching { windowManager.removeView(it) } }
-        dotViews.values.forEach { runCatching { windowManager.removeView(it) } }
+        safe("onDestroy-panel") { panelView?.let { windowManager?.removeView(it) } }
+        dotViews.values.forEach { v -> safe("onDestroy-dot") { windowManager?.removeView(v) } }
+    }
+
+    private fun safe(where: String, block: () -> Unit) {
+        try {
+            block()
+        } catch (e: Throwable) {
+            try {
+                Toast.makeText(
+                    this,
+                    "❌ [$where] ${e.javaClass.simpleName}: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            } catch (_: Throwable) {
+            }
+        }
     }
 
     private fun overlayType(): Int {
@@ -60,7 +77,8 @@ class OverlayService : Service() {
             @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
     }
 
-    private fun showPanel() {
+    private fun showPanel() = safe("showPanel") {
+        val wm = windowManager ?: return@safe
         val inflater = LayoutInflater.from(this)
         val view = inflater.inflate(R.layout.control_panel, null)
         panelView = view
@@ -79,22 +97,25 @@ class OverlayService : Service() {
         makeDraggable(view.findViewById(R.id.btnDrag), view, params)
 
         view.findViewById<View>(R.id.btnAddDot).setOnClickListener {
-            promptNewDotName()
+            safe("btnAddDot click") { promptNewDotName() }
         }
         view.findViewById<View>(R.id.btnCapture).setOnClickListener {
-            runAiOnScreen()
+            safe("btnCapture click") { runAiOnScreen() }
         }
         view.findViewById<View>(R.id.btnMinimize).setOnClickListener {
-            view.visibility = if (view.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            safe("btnMinimize click") {
+                view.visibility = if (view.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            }
         }
         view.findViewById<View>(R.id.btnClose).setOnClickListener {
-            stopSelf()
+            safe("btnClose click") { stopSelf() }
         }
 
-        windowManager.addView(view, params)
+        wm.addView(view, params)
     }
 
     private fun promptNewDotName() {
+        val wm = windowManager ?: return
         val inflater = LayoutInflater.from(this)
         val dialogView = inflater.inflate(R.layout.dialog_dot_name, null)
         val editText = dialogView.findViewById<EditText>(R.id.etDotName)
@@ -103,64 +124,61 @@ class OverlayService : Service() {
             .setTitle("Naya Touching Dot")
             .setView(dialogView)
             .setPositiveButton("Add Karo") { d, _ ->
-                val name = editText.text.toString().trim().ifEmpty { "dot${dots.size + 1}" }
-                d.dismiss()
-                android.os.Handler(mainLooper).postDelayed({
-                    try {
-                        val dot = TouchDot(
-                            id = UUID.randomUUID().toString(),
-                            name = name,
-                            x = 300f,
-                            y = 500f,
-                            locked = false
-                        )
-                        dots.add(dot)
-                        addDotView(dot)
-                        persistDots()
-                        Toast.makeText(this@OverlayService, "✓ Dot add: $name", Toast.LENGTH_SHORT).show()
-                    } catch (e: Exception) {
-                        Toast.makeText(this@OverlayService, "❌ Error: ${e.message}", Toast.LENGTH_LONG).show()
-                    }
-                }, 250)
+                safe("addDot button") {
+                    val name = editText.text.toString().trim().ifEmpty { "dot${dots.size + 1}" }
+                    d.dismiss()
+                    android.os.Handler(mainLooper).postDelayed({
+                        safe("addDot delayed") {
+                            val dot = TouchDot(
+                                id = UUID.randomUUID().toString(),
+                                name = name,
+                                x = 300f,
+                                y = 500f,
+                                locked = false
+                            )
+                            dots.add(dot)
+                            addDotView(dot)
+                            persistDots()
+                            Toast.makeText(this@OverlayService, "✓ Dot add: $name", Toast.LENGTH_SHORT).show()
+                        }
+                    }, 300)
+                }
             }
             .setNegativeButton("Cancel") { d, _ ->
-                d.dismiss()
+                safe("cancelDot button") { d.dismiss() }
             }
             .create()
 
-        dialog.window?.setType(overlayType())
-        dialog.show()
+        safe("dialog window type") { dialog.window?.setType(overlayType()) }
+        safe("dialog show") { dialog.show() }
     }
 
-    private fun addDotView(dot: TouchDot) {
-        try {
-            val inflater = LayoutInflater.from(this)
-            val view = inflater.inflate(R.layout.dot_view, null)
-            val label = view.findViewById<TextView>(R.id.dotLabel)
-            label.text = dot.name
-            updateDotAppearance(view, dot)
+    private fun addDotView(dot: TouchDot) = safe("addDotView") {
+        val wm = windowManager ?: return@safe
+        val inflater = LayoutInflater.from(this)
+        val view = inflater.inflate(R.layout.dot_view, null)
+        val label = view.findViewById<TextView>(R.id.dotLabel)
+        label.text = dot.name
+        updateDotAppearance(view, dot)
 
-            val params = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                overlayType(),
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                PixelFormat.TRANSLUCENT
-            )
-            params.gravity = Gravity.TOP or Gravity.START
-            params.x = dot.x.roundToInt()
-            params.y = dot.y.roundToInt()
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            overlayType(),
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            PixelFormat.TRANSLUCENT
+        )
+        params.gravity = Gravity.TOP or Gravity.START
+        params.x = dot.x.roundToInt()
+        params.y = dot.y.roundToInt()
 
-            windowManager.addView(view, params)
-            dotViews[dot.id] = view
+        wm.addView(view, params)
+        dotViews[dot.id] = view
 
-            setupDotTouchBehavior(view, params, dot)
-        } catch (e: Exception) {
-            Toast.makeText(this, "❌ Dot view error: ${e.message}", Toast.LENGTH_LONG).show()
-        }
+        setupDotTouchBehavior(view, params, dot)
     }
 
-    private fun updateDotAppearance(view: View, dot: TouchDot) {
+    private fun updateDotAppearance(view: View, dot: TouchDot) = safe("updateDotAppearance") {
         val circle = view.findViewById<View>(R.id.dotCircle)
         circle.setBackgroundResource(if (dot.locked) R.drawable.dot_circle_locked else R.drawable.dot_circle)
     }
@@ -173,46 +191,47 @@ class OverlayService : Service() {
         var moved = false
 
         view.setOnTouchListener { _, event ->
-            if (dot.locked) {
-                if (event.action == MotionEvent.ACTION_UP) {
-                    showDotMenu(view, dot)
-                }
-                return@setOnTouchListener true
-            }
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    initialX = params.x
-                    initialY = params.y
-                    touchX = event.rawX
-                    touchY = event.rawY
-                    moved = false
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val dx = (event.rawX - touchX).roundToInt()
-                    val dy = (event.rawY - touchY).roundToInt()
-                    if (kotlin.math.abs(dx) > 6 || kotlin.math.abs(dy) > 6) moved = true
-                    params.x = initialX + dx
-                    params.y = initialY + dy
-                    windowManager.updateViewLayout(view, params)
-                    dot.x = params.x.toFloat()
-                    dot.y = params.y.toFloat()
-                    true
-                }
-                MotionEvent.ACTION_UP -> {
-                    if (!moved) {
+            var handled = true
+            safe("dot touch") {
+                val wm = windowManager
+                if (dot.locked) {
+                    if (event.action == MotionEvent.ACTION_UP) {
                         showDotMenu(view, dot)
-                    } else {
-                        persistDots()
                     }
-                    true
+                    return@safe
                 }
-                else -> false
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        initialX = params.x
+                        initialY = params.y
+                        touchX = event.rawX
+                        touchY = event.rawY
+                        moved = false
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        val dx = (event.rawX - touchX).roundToInt()
+                        val dy = (event.rawY - touchY).roundToInt()
+                        if (kotlin.math.abs(dx) > 6 || kotlin.math.abs(dy) > 6) moved = true
+                        params.x = initialX + dx
+                        params.y = initialY + dy
+                        wm?.updateViewLayout(view, params)
+                        dot.x = params.x.toFloat()
+                        dot.y = params.y.toFloat()
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        if (!moved) {
+                            showDotMenu(view, dot)
+                        } else {
+                            persistDots()
+                        }
+                    }
+                }
             }
+            handled
         }
     }
 
-    private fun showDotMenu(view: View, dot: TouchDot) {
+    private fun showDotMenu(view: View, dot: TouchDot) = safe("showDotMenu") {
         val options = if (dot.locked)
             arrayOf("Unlock", "Rename", "Delete")
         else
@@ -221,28 +240,30 @@ class OverlayService : Service() {
         val dialog = AlertDialog.Builder(this, androidx.appcompat.R.style.Theme_AppCompat_Dialog_Alert)
             .setTitle(dot.name)
             .setItems(options) { d, which ->
-                when (which) {
-                    0 -> {
-                        dot.locked = !dot.locked
-                        updateDotAppearance(view, dot)
-                        persistDots()
-                        d.dismiss()
-                        Toast.makeText(this, if (dot.locked) "🔒 Locked" else "🔓 Unlocked", Toast.LENGTH_SHORT).show()
-                    }
-                    1 -> {
-                        d.dismiss()
-                        renameDot(view, dot)
-                    }
-                    2 -> {
-                        d.dismiss()
-                        deleteDot(view, dot)
+                safe("dotMenu choice") {
+                    when (which) {
+                        0 -> {
+                            dot.locked = !dot.locked
+                            updateDotAppearance(view, dot)
+                            persistDots()
+                            d.dismiss()
+                            Toast.makeText(this, if (dot.locked) "🔒 Locked" else "🔓 Unlocked", Toast.LENGTH_SHORT).show()
+                        }
+                        1 -> {
+                            d.dismiss()
+                            renameDot(view, dot)
+                        }
+                        2 -> {
+                            d.dismiss()
+                            deleteDot(view, dot)
+                        }
                     }
                 }
             }
             .create()
 
-        dialog.window?.setType(overlayType())
-        dialog.show()
+        safe("dotMenu window type") { dialog.window?.setType(overlayType()) }
+        safe("dotMenu show") { dialog.show() }
     }
 
     private fun renameDot(view: View, dot: TouchDot) {
@@ -255,33 +276,35 @@ class OverlayService : Service() {
             .setTitle("Naam Badlo")
             .setView(dialogView)
             .setPositiveButton("Save") { d, _ ->
-                val newName = editText.text.toString().trim()
-                if (newName.isNotEmpty()) {
-                    dot.name = newName
-                    view.findViewById<TextView>(R.id.dotLabel).text = newName
-                    persistDots()
-                    d.dismiss()
-                    Toast.makeText(this@OverlayService, "✓ Renamed: $newName", Toast.LENGTH_SHORT).show()
+                safe("renameDot save") {
+                    val newName = editText.text.toString().trim()
+                    if (newName.isNotEmpty()) {
+                        dot.name = newName
+                        view.findViewById<TextView>(R.id.dotLabel).text = newName
+                        persistDots()
+                        d.dismiss()
+                        Toast.makeText(this@OverlayService, "✓ Renamed: $newName", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
             .setNegativeButton("Cancel") { d, _ ->
-                d.dismiss()
+                safe("renameDot cancel") { d.dismiss() }
             }
             .create()
 
-        dialog.window?.setType(overlayType())
-        dialog.show()
+        safe("renameDot window type") { dialog.window?.setType(overlayType()) }
+        safe("renameDot show") { dialog.show() }
     }
 
-    private fun deleteDot(view: View, dot: TouchDot) {
-        windowManager.removeView(view)
+    private fun deleteDot(view: View, dot: TouchDot) = safe("deleteDot") {
+        windowManager?.removeView(view)
         dotViews.remove(dot.id)
         dots.remove(dot)
         persistDots()
         Toast.makeText(this, "✓ Dot deleted", Toast.LENGTH_SHORT).show()
     }
 
-    private fun persistDots() {
+    private fun persistDots() = safe("persistDots") {
         AppStore.saveDots(this, dots)
     }
 
@@ -294,19 +317,21 @@ class OverlayService : Service() {
             Toast.makeText(this, "❌ Screen capture ready nahi", Toast.LENGTH_LONG).show()
             return
         }
-        Toast.makeText(this, "⏳ Processing...", Toast.LENGTH_SHORT).show()
+        safe("runAiOnScreen") {
+            Toast.makeText(this, "⏳ Processing...", Toast.LENGTH_SHORT).show()
 
-        setOverlayVisibility(View.INVISIBLE)
+            setOverlayVisibility(View.INVISIBLE)
 
-        val intent = Intent(this, ScreenCaptureService::class.java)
-        intent.action = ScreenCaptureService.ACTION_CAPTURE_AND_ANALYZE
-        intent.putExtra(ScreenCaptureService.EXTRA_DOTS_JSON, dotsToJsonString())
-        intent.putExtra(ScreenCaptureService.EXTRA_PROMPT, AppStore.loadPrompt(this))
-        ContextCompat.startForegroundService(this, intent)
+            val intent = Intent(this, ScreenCaptureService::class.java)
+            intent.action = ScreenCaptureService.ACTION_CAPTURE_AND_ANALYZE
+            intent.putExtra(ScreenCaptureService.EXTRA_DOTS_JSON, dotsToJsonString())
+            intent.putExtra(ScreenCaptureService.EXTRA_PROMPT, AppStore.loadPrompt(this))
+            ContextCompat.startForegroundService(this, intent)
 
-        android.os.Handler(mainLooper).postDelayed({
-            setOverlayVisibility(View.VISIBLE)
-        }, 900)
+            android.os.Handler(mainLooper).postDelayed({
+                safe("restoreVisibility") { setOverlayVisibility(View.VISIBLE) }
+            }, 900)
+        }
     }
 
     private fun setOverlayVisibility(visibility: Int) {
@@ -327,26 +352,26 @@ class OverlayService : Service() {
         var touchY = 0f
 
         handle.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    initialX = params.x
-                    initialY = params.y
-                    touchX = event.rawX
-                    touchY = event.rawY
-                    true
+            safe("panel drag") {
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        initialX = params.x
+                        initialY = params.y
+                        touchX = event.rawX
+                        touchY = event.rawY
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        params.x = initialX + (event.rawX - touchX).roundToInt()
+                        params.y = initialY + (event.rawY - touchY).roundToInt()
+                        windowManager?.updateViewLayout(container, params)
+                    }
                 }
-                MotionEvent.ACTION_MOVE -> {
-                    params.x = initialX + (event.rawX - touchX).roundToInt()
-                    params.y = initialY + (event.rawY - touchY).roundToInt()
-                    windowManager.updateViewLayout(container, params)
-                    true
-                }
-                else -> false
             }
+            true
         }
     }
 
-    private fun startForegroundNotif() {
+    private fun startForegroundNotif() = safe("startForegroundNotif") {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID, "AI Touch Overlay", NotificationManager.IMPORTANCE_MIN
@@ -356,7 +381,7 @@ class OverlayService : Service() {
         }
         val notif = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("AI Touch Active")
-            .setContentText("Dots: ${dots.size}")
+            .setContentText("Panel running")
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .setOngoing(true)
             .build()
