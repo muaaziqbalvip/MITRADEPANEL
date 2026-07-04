@@ -122,6 +122,7 @@ class OverlayService : Service() {
             }
             .create()
 
+        dialog.window?.setType(overlayType())
         dialog.show()
     }
 
@@ -230,6 +231,7 @@ class OverlayService : Service() {
             }
             .create()
 
+        dialog.window?.setType(overlayType())
         dialog.show()
     }
 
@@ -257,6 +259,7 @@ class OverlayService : Service() {
             }
             .create()
 
+        dialog.window?.setType(overlayType())
         dialog.show()
     }
 
