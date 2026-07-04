@@ -19,8 +19,8 @@ data class TouchDot(
         val o = JSONObject()
         o.put("id", id)
         o.put("name", name)
-        o.put("x", x)
-        o.put("y", y)
+        o.put("x", x.toDouble())
+        o.put("y", y.toDouble())
         o.put("locked", locked)
         return o
     }
