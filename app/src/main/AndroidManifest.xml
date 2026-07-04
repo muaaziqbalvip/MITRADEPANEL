@@ -29,7 +29,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
+        <activity
+    android:name=".DialogHostActivity"
+    android:exported="false"
+    android:theme="@style/Theme.AITouch.Transparent"
+    android:excludeFromRecents="true"
+    android:launchMode="singleTop"
+    android:taskAffinity="" />
         <!-- Floating overlay + dots service -->
         <service
             android:name=".OverlayService"
