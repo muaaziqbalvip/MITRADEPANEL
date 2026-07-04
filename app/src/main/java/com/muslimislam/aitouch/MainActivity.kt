@@ -27,16 +27,19 @@ class MainActivity : AppCompatActivity() {
     private val screenCaptureLauncher =
         registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK && result.data != null) {
-                // Hand the projection permission result to the ScreenCaptureService
                 val svcIntent = Intent(this, ScreenCaptureService::class.java).apply {
                     action = ScreenCaptureService.ACTION_START
                     putExtra(ScreenCaptureService.EXTRA_RESULT_CODE, result.resultCode)
                     putExtra(ScreenCaptureService.EXTRA_RESULT_DATA, result.data)
                 }
                 ContextCompat.startForegroundService(this, svcIntent)
-                Toast.makeText(this, "Screen capture ready", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "✓ Screen capture ready", Toast.LENGTH_SHORT).show()
+
+                val overlayIntent = Intent(this, OverlayService::class.java)
+                ContextCompat.startForegroundService(this, overlayIntent)
+                moveTaskToBack(true)
             } else {
-                Toast.makeText(this, "Screen capture permission zaroori hai", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "❌ Screen capture permission zaroori hai — dobara try karein", Toast.LENGTH_LONG).show()
             }
         }
 
@@ -130,14 +133,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // Request screen capture permission (needed once per session)
         val mpm = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         screenCaptureLauncher.launch(mpm.createScreenCaptureIntent())
-
-        // Start the floating panel overlay service
-        val overlayIntent = Intent(this, OverlayService::class.java)
-        ContextCompat.startForegroundService(this, overlayIntent)
-
-        moveTaskToBack(true)
     }
 }
