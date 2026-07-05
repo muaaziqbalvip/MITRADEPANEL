@@ -18,8 +18,8 @@
         android:text="dot"
         android:textColor="@color/white"
         android:textSize="11sp"
-        android:background="#AA0F172A"
-        android:paddingLeft="4dp"
-        android:paddingRight="4dp"
-        android:layout_marginTop="2dp" />
+        android:textStyle="bold"
+        android:background="@drawable/dot_label_bg"
+        android:layout_marginTop="4dp"
+        android:elevation="4dp" />
 </LinearLayout>
