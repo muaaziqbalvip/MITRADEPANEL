@@ -1,14 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
-    <color name="primary">#0B1120</color>
-    <color name="primary_light">#141E30</color>
-    <color name="accent">#22C55E</color>
-    <color name="accent_light">#4ADE80</color>
-    <color name="dot_color">#22C55E</color>
-    <color name="dot_locked">#F59E0B</color>
-    <color name="panel_bg">#DD0F172A</color>
-    <color name="card_bg">#151F35</color>
-    <color name="text_secondary">#94A3B8</color>
-    <color name="input_bg">#1E293B</color>
+    <color name="mitv_black">#0A0A0A</color>
+    <color name="mitv_gold">#D4AF37</color>
 </resources>

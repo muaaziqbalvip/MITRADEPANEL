@@ -1,0 +1,26 @@
+{
+  "_comment": "PLACEHOLDER FILE — replace this entire file with the real google-services.json downloaded from your Firebase project console (project: ramadan-2385b or a new project). Path: Firebase Console > Project Settings > Your apps > google-services.json. Package name must match com.mitv.master exactly.",
+  "project_info": {
+    "project_number": "REPLACE_ME",
+    "project_id": "REPLACE_ME",
+    "storage_bucket": "REPLACE_ME.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "REPLACE_ME",
+        "android_client_info": {
+          "package_name": "com.mitv.master"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        { "current_key": "REPLACE_ME" }
+      ],
+      "services": {
+        "appinvite_service": { "other_platform_oauth_client": [] }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
