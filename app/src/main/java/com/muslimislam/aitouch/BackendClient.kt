@@ -62,7 +62,7 @@ object BackendClient {
                     return null
                 }
                 if (responseText == null) return null
-                parseActions(responseText)
+                parseActions(context, responseText)
             }
         } catch (e: Exception) {
             postToast(context, "Network error: ${e.message}")
@@ -70,9 +70,20 @@ object BackendClient {
         }
     }
 
-    private fun parseActions(json: String): List<AiAction> {
+    private fun parseActions(context: Context, json: String): List<AiAction> {
         val root = JSONObject(json)
-        val arr = root.optJSONArray("actions") ?: return emptyList()
+        val debugRaw = root.optString("_debug_raw", "")
+
+        val arr = root.optJSONArray("actions")
+        val isNoneOrEmpty = arr == null || arr.length() == 0 ||
+            (arr.length() == 1 && arr.getJSONObject(0).optString("type") == "none")
+
+        if (isNoneOrEmpty && debugRaw.isNotBlank()) {
+            val preview = if (debugRaw.length > 300) debugRaw.substring(0, 300) + "..." else debugRaw
+            postToast(context, "🤖 AI said: $preview")
+        }
+
+        if (arr == null) return emptyList()
         val list = mutableListOf<AiAction>()
         for (i in 0 until arr.length()) {
             val o = arr.getJSONObject(i)
