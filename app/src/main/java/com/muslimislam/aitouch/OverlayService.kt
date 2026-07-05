@@ -28,12 +28,14 @@ class OverlayService : Service() {
         const val CHANNEL_ID = "ai_touch_overlay"
         const val NOTIF_ID = 1001
         var isRunning = false
+        var instance: OverlayService? = null
     }
 
     override fun onCreate() {
         super.onCreate()
         safe("onCreate") {
             isRunning = true
+            instance = this
             windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
             startForegroundNotif()
             dots.addAll(AppStore.loadDots(this))
@@ -51,6 +53,7 @@ class OverlayService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         isRunning = false
+        instance = null
         safe("onDestroy-panel") { panelView?.let { windowManager?.removeView(it) } }
         dotViews.values.forEach { v -> safe("onDestroy-dot") { windowManager?.removeView(v) } }
     }
@@ -328,10 +331,15 @@ class OverlayService : Service() {
             intent.putExtra(ScreenCaptureService.EXTRA_PROMPT, AppStore.loadPrompt(this))
             ContextCompat.startForegroundService(this, intent)
 
+            OverlayService.instance = this
             android.os.Handler(mainLooper).postDelayed({
-                safe("restoreVisibility") { setOverlayVisibility(View.VISIBLE) }
-            }, 900)
+                safe("restoreVisibility-timeout") { setOverlayVisibility(View.VISIBLE) }
+            }, 15000)
         }
+    }
+
+    fun restoreVisibilityNow() = safe("restoreVisibilityNow") {
+        setOverlayVisibility(View.VISIBLE)
     }
 
     private fun setOverlayVisibility(visibility: Int) {
