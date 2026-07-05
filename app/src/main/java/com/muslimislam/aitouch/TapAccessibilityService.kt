@@ -6,13 +6,6 @@ import android.graphics.Path
 import android.view.accessibility.AccessibilityEvent
 import android.widget.Toast
 
-/**
- * Accessibility Service that performs the REAL taps/gestures on screen,
- * based on decisions returned by the AI backend (HF Space + Groq vision).
- *
- * Dots are matched by id/name to their stored x,y so the AI only needs to
- * say "tap dot X" and this service converts that into an actual gesture.
- */
 class TapAccessibilityService : AccessibilityService() {
 
     companion object {
@@ -29,16 +22,10 @@ class TapAccessibilityService : AccessibilityService() {
         instance = null
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // Not used for passive listening in this app; taps are driven by performActions()
-    }
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
 
     override fun onInterrupt() {}
 
-    /**
-     * Executes a list of AI-decided actions in sequence.
-     * Runs sequentially with small delays so gestures don't overlap.
-     */
     fun performActions(actions: List<AiAction>) {
         if (actions.isEmpty()) return
         val dots = AppStore.loadDots(this)
@@ -53,27 +40,33 @@ class TapAccessibilityService : AccessibilityService() {
         val action = actions[index]
 
         val resolvedPoint = resolvePoint(action, dots)
+        val matchedDot = action.dotId?.let { id ->
+            dots.find { it.id == id || it.name.equals(id, ignoreCase = true) }
+        }
 
         when (action.type) {
             "tap" -> {
                 if (resolvedPoint != null) {
                     performTap(resolvedPoint.first, resolvedPoint.second)
+                    showActionToast("✓ Tap: ${matchedDot?.name ?: action.dotId ?: "(${resolvedPoint.first.toInt()},${resolvedPoint.second.toInt()})"}")
                 }
             }
             "long_press" -> {
                 if (resolvedPoint != null) {
                     performLongPress(resolvedPoint.first, resolvedPoint.second)
+                    showActionToast("✓ Long-press: ${matchedDot?.name ?: action.dotId ?: ""}")
                 }
             }
             "swipe" -> {
                 if (resolvedPoint != null && action.toX != null && action.toY != null) {
                     performSwipe(resolvedPoint.first, resolvedPoint.second, action.toX, action.toY)
+                    showActionToast("✓ Swipe from: ${matchedDot?.name ?: action.dotId ?: ""}")
                 }
             }
             "type_text" -> {
                 if (resolvedPoint != null && action.text != null) {
                     performTap(resolvedPoint.first, resolvedPoint.second)
-                    // Give the field time to focus, then type via paste-like input
+                    showActionToast("✓ Type '${action.text}' at: ${matchedDot?.name ?: action.dotId ?: ""}")
                     android.os.Handler(mainLooper).postDelayed({
                         typeTextAtFocus(action.text)
                     }, 400)
@@ -82,17 +75,18 @@ class TapAccessibilityService : AccessibilityService() {
             "none" -> { /* AI decided no action needed */ }
         }
 
-        // Move to next action after a short delay so gestures don't collide
         android.os.Handler(mainLooper).postDelayed({
             executeSequentially(actions, dots, index + 1)
         }, 700)
     }
 
     private fun resolvePoint(action: AiAction, dots: List<TouchDot>): Pair<Float, Float>? {
-        // Priority: explicit dot reference > raw coordinates
         if (action.dotId != null) {
             val dot = dots.find { it.id == action.dotId || it.name.equals(action.dotId, ignoreCase = true) }
-            if (dot != null) return Pair(dot.x + 22f, dot.y + 22f) // center of ~44dp dot
+            if (dot != null) {
+                val halfDotPx = 22f * resources.displayMetrics.density
+                return Pair(dot.x + halfDotPx, dot.y + halfDotPx)
+            }
         }
         if (action.x != null && action.y != null) {
             return Pair(action.x, action.y)
@@ -125,6 +119,12 @@ class TapAccessibilityService : AccessibilityService() {
             .addStroke(GestureDescription.StrokeDescription(path, 0, 300))
             .build()
         dispatchGesture(gesture, null, null)
+    }
+
+    private fun showActionToast(msg: String) {
+        android.os.Handler(mainLooper).post {
+            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun typeTextAtFocus(text: String) {
