@@ -36,7 +36,10 @@ class TapAccessibilityService : AccessibilityService() {
     }
 
     private fun executeSequentially(actions: List<AiAction>, dots: List<TouchDot>, index: Int) {
-        if (index >= actions.size) return
+        if (index >= actions.size) {
+            OverlayService.instance?.restoreVisibilityNow()
+            return
+        }
         val action = actions[index]
 
         val resolvedPoint = resolvePoint(action, dots)
@@ -99,7 +102,18 @@ class TapAccessibilityService : AccessibilityService() {
         val gesture = GestureDescription.Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0, 80))
             .build()
-        dispatchGesture(gesture, null, null)
+        val dispatched = dispatchGesture(gesture, object : android.accessibilityservice.AccessibilityService.GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription?) {
+                super.onCompleted(gestureDescription)
+            }
+            override fun onCancelled(gestureDescription: GestureDescription?) {
+                super.onCancelled(gestureDescription)
+                showActionToast("⚠️ Gesture cancelled at (${x.toInt()},${y.toInt()})")
+            }
+        }, null)
+        if (!dispatched) {
+            showActionToast("❌ dispatchGesture returned FALSE — service not ready/enabled properly")
+        }
     }
 
     private fun performLongPress(x: Float, y: Float) {
