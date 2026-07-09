@@ -11,10 +11,10 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 /**
- * Backend now returns the simplest possible shape: just a dot name.
+ * Backend returns the simplest possible shape: just a dot name.
  * {"dot": "b"} means tap the dot named "b". {"dot": ""} means do nothing.
  * The backend also keeps its own history server-side to improve future
- * decisions — nothing the Android app needs to manage.
+ * decisions, and verifies an access PIN set as an HF Space secret.
  */
 object BackendClient {
 
@@ -24,10 +24,50 @@ object BackendClient {
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
+    /** Derives the base URL (without /analyze) from whatever the user saved. */
+    private fun baseUrl(backendUrl: String): String {
+        return backendUrl.removeSuffix("/analyze").removeSuffix("/")
+    }
+
+    /**
+     * Verifies the PIN against the backend's /verify_pin endpoint.
+     * Returns true if valid (or if the server has no PIN configured).
+     */
+    fun verifyPin(context: Context, pin: String, onResult: (Boolean, String?) -> Unit) {
+        val backendUrl = AppStore.loadBackendUrl(context)
+        if (backendUrl.isBlank()) {
+            onResult(false, "Backend URL set nahi hai")
+            return
+        }
+        val url = baseUrl(backendUrl) + "/verify_pin"
+
+        val body = JSONObject().apply { put("pin", pin) }
+        val requestBody = body.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+        val request = Request.Builder().url(url).post(requestBody).build()
+
+        Thread {
+            try {
+                client.newCall(request).execute().use { response ->
+                    val responseText = response.body?.string() ?: ""
+                    val json = try { JSONObject(responseText) } catch (_: Exception) { JSONObject() }
+                    val valid = json.optBoolean("valid", false)
+                    android.os.Handler(context.mainLooper).post {
+                        onResult(valid, if (!valid) "Galat PIN" else null)
+                    }
+                }
+            } catch (e: Exception) {
+                android.os.Handler(context.mainLooper).post {
+                    onResult(false, "Network error: ${e.message}")
+                }
+            }
+        }.start()
+    }
+
     /** Returns the dot name to tap, or null if no action / an error occurred. */
     fun analyze(context: Context, imageBase64: String, dotsJson: String, prompt: String): String? {
         val backendUrl = AppStore.loadBackendUrl(context)
         val groqKey = AppStore.loadGroqKey(context)
+        val pin = AppStore.loadPin(context)
 
         if (backendUrl.isBlank()) return null
 
@@ -36,6 +76,7 @@ object BackendClient {
             put("dots", JSONArray(dotsJson))
             put("prompt", prompt)
             put("groq_key", groqKey)
+            put("pin", pin)
         }
 
         val requestBody = body.toString().toRequestBody("application/json; charset=utf-8".toMediaType())

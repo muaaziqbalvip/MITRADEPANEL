@@ -8,6 +8,7 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
 import android.view.*
+import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
@@ -112,8 +113,11 @@ class OverlayService : Service() {
         view.findViewById<View>(R.id.btnAddDot).setOnClickListener {
             safe("btnAddDot click") { promptNewDotName() }
         }
-        view.findViewById<View>(R.id.btnCapture).setOnClickListener {
+        view.findViewById<Button>(R.id.btnCapture).setOnClickListener {
             safe("btnCapture click") { runAiOnScreen() }
+        }
+        view.findViewById<Button>(R.id.btnStartStop).setOnClickListener {
+            safe("btnStartStop click") { emergencyStopEverything() }
         }
         view.findViewById<View>(R.id.btnMinimize).setOnClickListener {
             safe("btnMinimize click") {
@@ -430,6 +434,19 @@ class OverlayService : Service() {
 
     fun restoreVisibilityNow() = safe("restoreVisibilityNow") {
         setOverlayVisibility(View.VISIBLE)
+    }
+
+    /**
+     * Emergency Stop — does nothing related to AI analysis. It only
+     * force-stops the whole AI Touch service stack immediately (panel,
+     * screen capture, everything), for when the user needs to halt
+     * everything right away (e.g. mid-trade panic button). To bring it
+     * back, reopen the app and tap "PANEL START KARO" again.
+     */
+    private fun emergencyStopEverything() = safe("emergencyStopEverything") {
+        Toast.makeText(this, "⏻ AI Touch band ho raha hai...", Toast.LENGTH_SHORT).show()
+        stopService(Intent(this, ScreenCaptureService::class.java))
+        stopSelf()
     }
 
     private fun setOverlayVisibility(visibility: Int) {

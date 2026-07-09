@@ -6,7 +6,8 @@ import org.json.JSONArray
 /**
  * Simple persistent storage using SharedPreferences.
  * Keeps: list of dots, the ONE-TIME saved AI instruction prompt,
- * and the HF Space backend URL.
+ * the HF Space backend URL, the Groq key, the access PIN, and whether
+ * the panel is currently running (for Start/Stop state restore).
  */
 object AppStore {
     private const val PREFS = "ai_touch_prefs"
@@ -14,6 +15,11 @@ object AppStore {
     private const val KEY_PROMPT = "saved_prompt"
     private const val KEY_BACKEND_URL = "backend_url"
     private const val KEY_GROQ_KEY = "groq_key"
+    private const val KEY_PIN = "access_pin"
+    private const val KEY_PIN_VERIFIED = "pin_verified"
+
+    // Default backend URL — pre-filled so the user doesn't have to type it.
+    const val DEFAULT_BACKEND_URL = "https://muaaznamtosonahoga1-miaitoch.hf.space/analyze"
 
     fun saveDots(ctx: Context, dots: List<TouchDot>) {
         val arr = JSONArray()
@@ -44,7 +50,7 @@ object AppStore {
     }
 
     fun loadBackendUrl(ctx: Context): String {
-        return prefs(ctx).getString(KEY_BACKEND_URL, "") ?: ""
+        return prefs(ctx).getString(KEY_BACKEND_URL, DEFAULT_BACKEND_URL) ?: DEFAULT_BACKEND_URL
     }
 
     fun saveGroqKey(ctx: Context, key: String) {
@@ -53,6 +59,22 @@ object AppStore {
 
     fun loadGroqKey(ctx: Context): String {
         return prefs(ctx).getString(KEY_GROQ_KEY, "") ?: ""
+    }
+
+    fun savePin(ctx: Context, pin: String) {
+        prefs(ctx).edit().putString(KEY_PIN, pin).apply()
+    }
+
+    fun loadPin(ctx: Context): String {
+        return prefs(ctx).getString(KEY_PIN, "") ?: ""
+    }
+
+    fun setPinVerified(ctx: Context, verified: Boolean) {
+        prefs(ctx).edit().putBoolean(KEY_PIN_VERIFIED, verified).apply()
+    }
+
+    fun isPinVerified(ctx: Context): Boolean {
+        return prefs(ctx).getBoolean(KEY_PIN_VERIFIED, false)
     }
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

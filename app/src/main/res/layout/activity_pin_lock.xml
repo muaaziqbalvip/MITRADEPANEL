@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/pin_screen_bg"
+    android:gravity="center"
+    android:padding="32dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🔒"
+        android:textSize="52sp"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="AI Touch"
+        android:textColor="@color/white"
+        android:textSize="26sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="4dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Access PIN darj karein"
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp"
+        android:layout_marginBottom="32dp" />
+
+    <EditText
+        android:id="@+id/etPin"
+        android:layout_width="220dp"
+        android:layout_height="60dp"
+        android:hint="• • • •"
+        android:gravity="center"
+        android:textColor="@color/white"
+        android:textColorHint="#4B5A78"
+        android:textSize="26sp"
+        android:letterSpacing="0.4"
+        android:inputType="numberPassword"
+        android:maxLength="12"
+        android:background="@drawable/input_bg"
+        android:layout_marginBottom="20dp" />
+
+    <Button
+        android:id="@+id/btnUnlock"
+        android:layout_width="220dp"
+        android:layout_height="54dp"
+        android:text="Unlock 🔓"
+        android:textColor="@color/white"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:textAllCaps="false"
+        android:background="@drawable/button_primary_bg"
+        android:elevation="4dp" />
+
+    <TextView
+        android:id="@+id/tvPinStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textColor="#F87171"
+        android:textSize="13sp"
+        android:layout_marginTop="16dp" />
+
+</LinearLayout>
