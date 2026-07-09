@@ -1,4 +1,4 @@
-sname: Build AI Touch APK
+name: Build AI Touch APK
 
 on:
   push:
