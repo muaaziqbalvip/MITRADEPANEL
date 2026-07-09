@@ -323,7 +323,7 @@ class OverlayService : Service() {
         safe("dotMenu show") { dialog.show() }
     }
 
-    private fun showResizeDialog(view: View, dot: TouchDot) = safe("showResizeDialog") {
+    private fun showResizeDialog(view: View, dot: TouchDot): Unit = safe("showResizeDialog") {
         val options = arrayOf("➖ Chota karo", "➕ Bada karo", "🔄 Reset (48dp)")
         val dialog = AlertDialog.Builder(this, androidx.appcompat.R.style.Theme_AppCompat_Dialog_Alert)
             .setTitle("Dot Size — ${dot.name}")
@@ -338,13 +338,19 @@ class OverlayService : Service() {
                     persistDots()
                     d.dismiss()
                     // Let them keep adjusting without re-opening the menu each time
-                    showResizeDialog(view, dot)
+                    reopenResizeDialog(view, dot)
                 }
             }
             .setNegativeButton("Done") { d, _ -> d.dismiss() }
             .create()
         safe("resize window type") { dialog.window?.setType(overlayType()) }
         safe("resize show") { dialog.show() }
+    }
+
+    /** Small indirection so showResizeDialog's lambda doesn't call itself directly
+     *  (that caused a Kotlin "recursive type checking" compile error). */
+    private fun reopenResizeDialog(view: View, dot: TouchDot) {
+        showResizeDialog(view, dot)
     }
 
     private fun renameDot(view: View, dot: TouchDot) {
