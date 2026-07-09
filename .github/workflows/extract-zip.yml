@@ -5,6 +5,8 @@ on:
     paths:
       - "*.zip"
 
+  workflow_dispatch:
+
 permissions:
   contents: write
 
@@ -21,17 +23,24 @@ jobs:
       - name: Find ZIP
         id: zip
         run: |
-          ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
+          ZIP_FILE=$(find . -maxdepth 2 -type f -name "*.zip" | head -n 1)
+
+          if [ -z "$ZIP_FILE" ]; then
+            echo "No ZIP file found!"
+            exit 1
+          fi
+
+          echo "ZIP Found: $ZIP_FILE"
           echo "zip=$ZIP_FILE" >> $GITHUB_OUTPUT
 
       - name: Extract ZIP
         run: |
+          rm -rf extracted
           mkdir extracted
           unzip -o "${{ steps.zip.outputs.zip }}" -d extracted
 
-      - name: Remove GitHub Workflow Folder
+      - name: Remove GitHub Folder
         run: |
-          rm -rf extracted/.github
           find extracted -type d -name ".github" -exec rm -rf {} +
 
       - name: Copy Files to Repository Root
