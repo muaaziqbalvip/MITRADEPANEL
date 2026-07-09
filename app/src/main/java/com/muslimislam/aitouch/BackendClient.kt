@@ -10,16 +10,12 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
-data class AiAction(
-    val type: String,
-    val dotId: String? = null,
-    val x: Float? = null,
-    val y: Float? = null,
-    val text: String? = null,
-    val toX: Float? = null,
-    val toY: Float? = null
-)
-
+/**
+ * Backend now returns the simplest possible shape: just a dot name.
+ * {"dot": "b"} means tap the dot named "b". {"dot": ""} means do nothing.
+ * The backend also keeps its own history server-side to improve future
+ * decisions — nothing the Android app needs to manage.
+ */
 object BackendClient {
 
     private val client = OkHttpClient.Builder()
@@ -28,7 +24,8 @@ object BackendClient {
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    fun analyze(context: Context, imageBase64: String, dotsJson: String, prompt: String): List<AiAction>? {
+    /** Returns the dot name to tap, or null if no action / an error occurred. */
+    fun analyze(context: Context, imageBase64: String, dotsJson: String, prompt: String): String? {
         val backendUrl = AppStore.loadBackendUrl(context)
         val groqKey = AppStore.loadGroqKey(context)
 
@@ -49,11 +46,11 @@ object BackendClient {
 
         return try {
             client.newCall(request).execute().use { response ->
-                val responseText = response.body?.string()
+                val responseText = response.body?.string() ?: return null
+                val json = JSONObject(responseText)
+
                 if (!response.isSuccessful) {
-                    val errorDetail = try {
-                        responseText?.let { JSONObject(it).optString("error", "") } ?: ""
-                    } catch (_: Exception) { "" }
+                    val errorDetail = json.optString("error", "")
                     val msg = if (errorDetail.isNotBlank())
                         "Backend error ${response.code}: $errorDetail"
                     else
@@ -61,45 +58,19 @@ object BackendClient {
                     postToast(context, msg)
                     return null
                 }
-                if (responseText == null) return null
-                parseActions(context, responseText)
+
+                val dotName = json.optString("dot", "")
+                if (dotName.isBlank()) {
+                    postToast(context, "ℹ️ AI: koi action nahi")
+                    return null
+                }
+
+                dotName
             }
         } catch (e: Exception) {
             postToast(context, "Network error: ${e.message}")
             null
         }
-    }
-
-    private fun parseActions(context: Context, json: String): List<AiAction> {
-        val root = JSONObject(json)
-        val debugRaw = root.optString("_debug_raw", "")
-
-        val arr = root.optJSONArray("actions")
-        val isNoneOrEmpty = arr == null || arr.length() == 0 ||
-            (arr.length() == 1 && arr.getJSONObject(0).optString("type") == "none")
-
-        if (isNoneOrEmpty && debugRaw.isNotBlank()) {
-            val preview = if (debugRaw.length > 300) debugRaw.substring(0, 300) + "..." else debugRaw
-            postToast(context, "🤖 AI said: $preview")
-        }
-
-        if (arr == null) return emptyList()
-        val list = mutableListOf<AiAction>()
-        for (i in 0 until arr.length()) {
-            val o = arr.getJSONObject(i)
-            list.add(
-                AiAction(
-                    type = o.optString("type", "none"),
-                    dotId = o.optString("dot_id", null),
-                    x = if (o.has("x")) o.getDouble("x").toFloat() else null,
-                    y = if (o.has("y")) o.getDouble("y").toFloat() else null,
-                    text = o.optString("text", null),
-                    toX = if (o.has("to_x")) o.getDouble("to_x").toFloat() else null,
-                    toY = if (o.has("to_y")) o.getDouble("to_y").toFloat() else null
-                )
-            )
-        }
-        return list
     }
 
     private fun postToast(context: Context, msg: String) {

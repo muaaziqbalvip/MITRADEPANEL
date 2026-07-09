@@ -103,14 +103,16 @@ class ScreenCaptureService : Service() {
                 val base64 = bitmapToBase64(bitmap)
 
                 CoroutineScope(Dispatchers.IO).launch {
-                    val result = BackendClient.analyze(
+                    val dotName = BackendClient.analyze(
                         context = this@ScreenCaptureService,
                         imageBase64 = base64,
                         dotsJson = dotsJson,
                         prompt = prompt
                     )
-                    result?.let { actions ->
-                        TapAccessibilityService.instance?.performActions(actions)
+                    if (dotName != null) {
+                        TapAccessibilityService.instance?.tapDotByName(dotName)
+                    } else {
+                        OverlayService.instance?.restoreVisibilityNow()
                     }
                 }
             }
