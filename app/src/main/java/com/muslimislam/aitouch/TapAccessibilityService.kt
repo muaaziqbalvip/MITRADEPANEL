@@ -6,6 +6,11 @@ import android.graphics.Path
 import android.view.accessibility.AccessibilityEvent
 import android.widget.Toast
 
+/**
+ * Performs REAL taps/gestures on screen based on AI decisions.
+ * Dot centers are computed from each dot's own sizeDp (not a fixed 22dp),
+ * so resized dots still get tapped exactly in their visual center.
+ */
 class TapAccessibilityService : AccessibilityService() {
 
     companion object {
@@ -23,13 +28,14 @@ class TapAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
-
     override fun onInterrupt() {}
 
     fun performActions(actions: List<AiAction>) {
-        if (actions.isEmpty()) return
+        if (actions.isEmpty()) {
+            OverlayService.instance?.restoreVisibilityNow()
+            return
+        }
         val dots = AppStore.loadDots(this)
-
         android.os.Handler(mainLooper).post {
             executeSequentially(actions, dots, 0)
         }
@@ -51,7 +57,7 @@ class TapAccessibilityService : AccessibilityService() {
             "tap" -> {
                 if (resolvedPoint != null) {
                     performTap(resolvedPoint.first, resolvedPoint.second)
-                    showActionToast("✓ Tap: ${matchedDot?.name ?: action.dotId ?: "(${resolvedPoint.first.toInt()},${resolvedPoint.second.toInt()})"}")
+                    showActionToast("✓ Tap: ${matchedDot?.name ?: action.dotId ?: ""}")
                 }
             }
             "long_press" -> {
@@ -63,16 +69,14 @@ class TapAccessibilityService : AccessibilityService() {
             "swipe" -> {
                 if (resolvedPoint != null && action.toX != null && action.toY != null) {
                     performSwipe(resolvedPoint.first, resolvedPoint.second, action.toX, action.toY)
-                    showActionToast("✓ Swipe from: ${matchedDot?.name ?: action.dotId ?: ""}")
+                    showActionToast("✓ Swipe: ${matchedDot?.name ?: action.dotId ?: ""}")
                 }
             }
             "type_text" -> {
                 if (resolvedPoint != null && action.text != null) {
                     performTap(resolvedPoint.first, resolvedPoint.second)
-                    showActionToast("✓ Type '${action.text}' at: ${matchedDot?.name ?: action.dotId ?: ""}")
-                    android.os.Handler(mainLooper).postDelayed({
-                        typeTextAtFocus(action.text)
-                    }, 400)
+                    showActionToast("✓ Type '${action.text}': ${matchedDot?.name ?: action.dotId ?: ""}")
+                    android.os.Handler(mainLooper).postDelayed({ typeTextAtFocus(action.text) }, 400)
                 }
             }
             "none" -> { /* AI decided no action needed */ }
@@ -87,13 +91,13 @@ class TapAccessibilityService : AccessibilityService() {
         if (action.dotId != null) {
             val dot = dots.find { it.id == action.dotId || it.name.equals(action.dotId, ignoreCase = true) }
             if (dot != null) {
-                val halfDotPx = 22f * resources.displayMetrics.density
+                // Use the dot's own current size (it may have been resized by the user)
+                // to find its true visual center, converted to real pixels.
+                val halfDotPx = (dot.sizeDp / 2f) * resources.displayMetrics.density
                 return Pair(dot.x + halfDotPx, dot.y + halfDotPx)
             }
         }
-        if (action.x != null && action.y != null) {
-            return Pair(action.x, action.y)
-        }
+        if (action.x != null && action.y != null) return Pair(action.x, action.y)
         return null
     }
 
@@ -102,17 +106,14 @@ class TapAccessibilityService : AccessibilityService() {
         val gesture = GestureDescription.Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0, 80))
             .build()
-        val dispatched = dispatchGesture(gesture, object : android.accessibilityservice.AccessibilityService.GestureResultCallback() {
-            override fun onCompleted(gestureDescription: GestureDescription?) {
-                super.onCompleted(gestureDescription)
-            }
+        val dispatched = dispatchGesture(gesture, object : GestureResultCallback() {
             override fun onCancelled(gestureDescription: GestureDescription?) {
                 super.onCancelled(gestureDescription)
                 showActionToast("⚠️ Gesture cancelled at (${x.toInt()},${y.toInt()})")
             }
         }, null)
         if (!dispatched) {
-            showActionToast("❌ dispatchGesture returned FALSE — service not ready/enabled properly")
+            showActionToast("❌ Gesture dispatch failed — check Accessibility is ON")
         }
     }
 
@@ -125,10 +126,7 @@ class TapAccessibilityService : AccessibilityService() {
     }
 
     private fun performSwipe(x1: Float, y1: Float, x2: Float, y2: Float) {
-        val path = Path().apply {
-            moveTo(x1, y1)
-            lineTo(x2, y2)
-        }
+        val path = Path().apply { moveTo(x1, y1); lineTo(x2, y2) }
         val gesture = GestureDescription.Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0, 300))
             .build()

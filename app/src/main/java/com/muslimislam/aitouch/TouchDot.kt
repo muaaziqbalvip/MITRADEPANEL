@@ -4,16 +4,19 @@ import org.json.JSONObject
 
 /**
  * Represents a single "touching dot" the user places on screen.
- * - name: user-given label (AI will refer to this name to decide actions)
- * - x, y: absolute screen coordinates (pixels)
- * - locked: if true, dot cannot be dragged anymore (fixed in place)
+ * - name: short label shown INSIDE the dot (e.g. "s", "b") — also what the
+ *   AI uses to refer to this dot when deciding actions
+ * - x, y: absolute screen coordinates (pixels) of the dot's top-left corner
+ * - sizeDp: diameter of the dot in dp — user can resize bigger/smaller
+ * - locked: if true, dot cannot be dragged/resized anymore (fixed in place)
  */
 data class TouchDot(
     var id: String,
     var name: String,
     var x: Float,
     var y: Float,
-    var locked: Boolean = false
+    var locked: Boolean = false,
+    var sizeDp: Float = 48f
 ) {
     fun toJson(): JSONObject {
         val o = JSONObject()
@@ -22,6 +25,7 @@ data class TouchDot(
         o.put("x", x.toDouble())
         o.put("y", y.toDouble())
         o.put("locked", locked)
+        o.put("sizeDp", sizeDp.toDouble())
         return o
     }
 
@@ -32,7 +36,8 @@ data class TouchDot(
                 name = o.getString("name"),
                 x = o.getDouble("x").toFloat(),
                 y = o.getDouble("y").toFloat(),
-                locked = o.optBoolean("locked", false)
+                locked = o.optBoolean("locked", false),
+                sizeDp = o.optDouble("sizeDp", 48.0).toFloat()
             )
         }
     }
