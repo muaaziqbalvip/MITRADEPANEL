@@ -29,14 +29,13 @@ class TapAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
     override fun onInterrupt() {}
 
-    /** Looks up the dot by name and taps its center. Restores the overlay afterward. */
+    /** Looks up the dot by name and taps its center, hiding only that dot briefly. */
     fun tapDotByName(dotName: String) {
         val dots = AppStore.loadDots(this)
         val dot = dots.find { it.name.equals(dotName, ignoreCase = true) }
 
         if (dot == null) {
             showActionToast("❌ Dot '$dotName' nahi mila")
-            OverlayService.instance?.restoreVisibilityNow()
             return
         }
 
@@ -45,14 +44,12 @@ class TapAccessibilityService : AccessibilityService() {
         val y = dot.y + halfDotPx
 
         android.os.Handler(mainLooper).post {
+            // Hide only this one dot for a moment so its own overlay window
+            // doesn't intercept the tap meant for the app underneath —
+            // everything else (panel, other dots) stays visible throughout.
+            OverlayService.instance?.hideDotBrieflyForTap(dot.name)
             performTap(x, y)
             showActionToast("✓ ${dot.name}")
-
-            // Give the tap time to actually register before showing the
-            // overlay again — otherwise the dots' own windows can steal it.
-            android.os.Handler(mainLooper).postDelayed({
-                OverlayService.instance?.restoreVisibilityNow()
-            }, 500)
         }
     }
 

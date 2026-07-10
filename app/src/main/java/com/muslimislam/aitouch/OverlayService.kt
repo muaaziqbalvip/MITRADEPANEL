@@ -8,7 +8,6 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
 import android.view.*
-import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
@@ -113,10 +112,10 @@ class OverlayService : Service() {
         view.findViewById<View>(R.id.btnAddDot).setOnClickListener {
             safe("btnAddDot click") { promptNewDotName() }
         }
-        view.findViewById<Button>(R.id.btnCapture).setOnClickListener {
+        view.findViewById<View>(R.id.btnCapture).setOnClickListener {
             safe("btnCapture click") { runAiOnScreen() }
         }
-        view.findViewById<Button>(R.id.btnStartStop).setOnClickListener {
+        view.findViewById<View>(R.id.btnStartStop).setOnClickListener {
             safe("btnStartStop click") { emergencyStopEverything() }
         }
         view.findViewById<View>(R.id.btnMinimize).setOnClickListener {
@@ -412,10 +411,10 @@ class OverlayService : Service() {
         safe("runAiOnScreen") {
             Toast.makeText(this, "⏳ Processing...", Toast.LENGTH_SHORT).show()
 
-            // Hide overlay BEFORE screenshot so dots don't appear in the capture,
-            // and keep it hidden until the tap actually completes — otherwise
-            // the dots' own overlay windows intercept the gesture meant for
-            // the app underneath.
+            // Hide everything only for a brief instant so dots/panel don't
+            // appear IN the screenshot itself, then restore immediately.
+            // The panel + dots stay visible on screen the rest of the time —
+            // they no longer disappear for the whole analysis+tap duration.
             setOverlayVisibility(View.INVISIBLE)
 
             val intent = Intent(this, ScreenCaptureService::class.java)
@@ -424,16 +423,32 @@ class OverlayService : Service() {
             intent.putExtra(ScreenCaptureService.EXTRA_PROMPT, AppStore.loadPrompt(this))
             ContextCompat.startForegroundService(this, intent)
 
-            // Safety-net timeout in case TapAccessibilityService never calls back
-            // (e.g. AI returned no actions, or backend failed).
+            // Restore visibility almost immediately — the actual screenshot
+            // capture happens within ~300ms of the service starting, so this
+            // is just long enough to keep dots out of the captured frame.
             android.os.Handler(mainLooper).postDelayed({
-                safe("restoreVisibility-timeout") { setOverlayVisibility(View.VISIBLE) }
-            }, 15000)
+                safe("restoreVisibility-afterCapture") { setOverlayVisibility(View.VISIBLE) }
+            }, 400)
         }
     }
 
     fun restoreVisibilityNow() = safe("restoreVisibilityNow") {
         setOverlayVisibility(View.VISIBLE)
+    }
+
+    /**
+     * Hides ONLY the given dot's own view briefly, so its overlay window
+     * doesn't intercept the real tap gesture meant for the app underneath —
+     * then shows it again shortly after. Everything else on screen (panel,
+     * other dots) stays visible the whole time.
+     */
+    fun hideDotBrieflyForTap(dotName: String, durationMs: Long = 350) = safe("hideDotBrieflyForTap") {
+        val dot = dots.find { it.name.equals(dotName, ignoreCase = true) } ?: return@safe
+        val view = dotViews[dot.id] ?: return@safe
+        view.visibility = View.INVISIBLE
+        android.os.Handler(mainLooper).postDelayed({
+            safe("restoreDotAfterTap") { view.visibility = View.VISIBLE }
+        }, durationMs)
     }
 
     /**
