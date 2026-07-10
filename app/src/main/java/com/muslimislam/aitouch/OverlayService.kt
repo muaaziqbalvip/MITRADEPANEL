@@ -213,6 +213,41 @@ class OverlayService : Service() {
         wm.addView(view, params)
     }
 
+    /**
+     * Safety check called after operations that involve showing a dialog
+     * (which occasionally seems to disturb overlay window ordering). If the
+     * bubble or panel view somehow lost its window attachment, this puts
+     * it back so the user never loses access to the controls.
+     */
+    private fun ensureBubbleAndPanelVisible() = safe("ensureBubbleAndPanelVisible") {
+        val wm = windowManager ?: return@safe
+
+        val bubble = bubbleView
+        if (bubble != null && !bubble.isAttachedToWindow) {
+            safe("reattach bubble") {
+                wm.addView(bubble, bubbleParams)
+            }
+        }
+
+        val panel = panelView
+        if (isPanelVisible && panel != null && !panel.isAttachedToWindow) {
+            safe("reattach panel") {
+                val bp = bubbleParams
+                val params = WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    overlayType(),
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                    PixelFormat.TRANSLUCENT
+                )
+                params.gravity = Gravity.TOP or Gravity.START
+                params.x = bp?.x ?: 40
+                params.y = (bp?.y ?: 120) + 70
+                wm.addView(panel, params)
+            }
+        }
+    }
+
     // ---------------- Add / Rename dot ----------------
 
     private fun promptNewDotName() {
@@ -242,6 +277,7 @@ class OverlayService : Service() {
                             dots.add(dot)
                             addDotView(dot)
                             persistDots()
+                            ensureBubbleAndPanelVisible()
                             Toast.makeText(this@OverlayService, "✓ Dot add ho gaya: $name", Toast.LENGTH_SHORT).show()
                         }
                     }, 300)
@@ -451,6 +487,7 @@ class OverlayService : Service() {
                         view.findViewById<TextView>(R.id.dotLabel).text = newName
                         persistDots()
                         d.dismiss()
+                        ensureBubbleAndPanelVisible()
                         Toast.makeText(this@OverlayService, "✓ Renamed: $newName", Toast.LENGTH_SHORT).show()
                     }
                 }
@@ -467,6 +504,7 @@ class OverlayService : Service() {
         dotViews.remove(dot.id)
         dots.remove(dot)
         persistDots()
+        ensureBubbleAndPanelVisible()
         Toast.makeText(this, "✓ Dot delete ho gaya", Toast.LENGTH_SHORT).show()
     }
 
