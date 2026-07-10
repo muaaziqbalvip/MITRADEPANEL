@@ -48,16 +48,6 @@
         android:textSize="15sp"
         android:background="@drawable/panel_icon_ripple" />
 
-    <TextView
-        android:id="@+id/btnStartStop"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:gravity="center"
-        android:text="⏻"
-        android:textColor="#F87171"
-        android:textSize="15sp"
-        android:background="@drawable/panel_icon_ripple" />
-
     <View
         android:layout_width="1dp"
         android:layout_height="18dp"

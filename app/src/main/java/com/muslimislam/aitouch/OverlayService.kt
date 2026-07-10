@@ -18,20 +18,21 @@ import java.util.UUID
 import kotlin.math.roundToInt
 
 /**
- * Floating control panel + user-placed "touching dots".
+ * Floating toggle bubble (always on screen) + the control panel it shows/hides,
+ * + user-placed "touching dots".
  *
- * Dots show ONLY a short label (max 2 chars, e.g. "s"/"b") INSIDE the
- * circle itself — no separate text bubble underneath. Dots can be:
- *  - dragged around (when unlocked)
- *  - resized bigger/smaller (long-press menu -> Resize, or pinch)
- *  - locked in place once positioned correctly
- *
- * Everything is wrapped in safe() so a single failure never crashes the app.
+ * Tap the bubble once -> panel appears. Tap again -> panel hides. The bubble
+ * itself never disappears, so the user always has a way to bring the panel
+ * back. Everything is wrapped in safe() so a single failure never crashes
+ * the whole service — errors show as a Toast instead.
  */
 class OverlayService : Service() {
 
     private var windowManager: WindowManager? = null
     private var panelView: View? = null
+    private var bubbleView: View? = null
+    private var bubbleParams: WindowManager.LayoutParams? = null
+    private var isPanelVisible = false
     private val dotViews = mutableMapOf<String, View>()
     private val dots = mutableListOf<TouchDot>()
 
@@ -52,8 +53,9 @@ class OverlayService : Service() {
             windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
             startForegroundNotif()
             dots.addAll(AppStore.loadDots(this))
-            showPanel()
+            showBubble()
             dots.forEach { addDotView(it) }
+            setDotsVisibility(View.GONE) // dots hidden until panel is opened
         }
     }
 
@@ -65,10 +67,12 @@ class OverlayService : Service() {
         super.onDestroy()
         isRunning = false
         instance = null
+        safe("onDestroy-bubble") { bubbleView?.let { windowManager?.removeView(it) } }
         safe("onDestroy-panel") { panelView?.let { windowManager?.removeView(it) } }
         dotViews.values.forEach { v -> safe("onDestroy-dot") { windowManager?.removeView(v) } }
     }
 
+    /** Runs [block]; on ANY failure shows a Toast instead of crashing the service. */
     private fun safe(where: String, block: () -> Unit) {
         try {
             block()
@@ -88,13 +92,13 @@ class OverlayService : Service() {
 
     private fun dp(value: Float): Int = (value * resources.displayMetrics.density).roundToInt()
 
-    // ---------------- Control Panel ----------------
+    // ---------------- Toggle Bubble ----------------
 
-    private fun showPanel() = safe("showPanel") {
+    private fun showBubble() = safe("showBubble") {
         val wm = windowManager ?: return@safe
         val inflater = LayoutInflater.from(this)
-        val view = inflater.inflate(R.layout.control_panel, null)
-        panelView = view
+        val view = inflater.inflate(R.layout.toggle_bubble, null)
+        bubbleView = view
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -106,6 +110,87 @@ class OverlayService : Service() {
         params.gravity = Gravity.TOP or Gravity.START
         params.x = 40
         params.y = 120
+        bubbleParams = params
+
+        var initialX = 0
+        var initialY = 0
+        var touchX = 0f
+        var touchY = 0f
+        var moved = false
+
+        view.setOnTouchListener { _, event ->
+            safe("bubble touch") {
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        initialX = params.x
+                        initialY = params.y
+                        touchX = event.rawX
+                        touchY = event.rawY
+                        moved = false
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        val dx = (event.rawX - touchX).roundToInt()
+                        val dy = (event.rawY - touchY).roundToInt()
+                        if (kotlin.math.abs(dx) > 8 || kotlin.math.abs(dy) > 8) moved = true
+                        params.x = initialX + dx
+                        params.y = initialY + dy
+                        wm.updateViewLayout(view, params)
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        if (!moved) togglePanel()
+                    }
+                }
+            }
+            true
+        }
+
+        wm.addView(view, params)
+    }
+
+    private fun togglePanel() = safe("togglePanel") {
+        if (isPanelVisible) {
+            hidePanelAndDots()
+        } else {
+            showPanelAndDots()
+        }
+    }
+
+    private fun showPanelAndDots() = safe("showPanelAndDots") {
+        if (panelView == null) {
+            buildPanel()
+        }
+        panelView?.visibility = View.VISIBLE
+        setDotsVisibility(View.VISIBLE)
+        isPanelVisible = true
+        Toast.makeText(this, "✓ Panel dikh raha hai", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun hidePanelAndDots() = safe("hidePanelAndDots") {
+        panelView?.visibility = View.GONE
+        setDotsVisibility(View.GONE)
+        isPanelVisible = false
+        Toast.makeText(this, "✓ Panel chhupa diya", Toast.LENGTH_SHORT).show()
+    }
+
+    // ---------------- Control Panel ----------------
+
+    private fun buildPanel() = safe("buildPanel") {
+        val wm = windowManager ?: return@safe
+        val inflater = LayoutInflater.from(this)
+        val view = inflater.inflate(R.layout.control_panel, null)
+        panelView = view
+
+        val bp = bubbleParams
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            overlayType(),
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            PixelFormat.TRANSLUCENT
+        )
+        params.gravity = Gravity.TOP or Gravity.START
+        params.x = bp?.x ?: 40
+        params.y = (bp?.y ?: 120) + 70
 
         makeDraggable(view.findViewById(R.id.btnDrag), view, params)
 
@@ -115,16 +200,14 @@ class OverlayService : Service() {
         view.findViewById<View>(R.id.btnCapture).setOnClickListener {
             safe("btnCapture click") { runAiOnScreen() }
         }
-        view.findViewById<View>(R.id.btnStartStop).setOnClickListener {
-            safe("btnStartStop click") { emergencyStopEverything() }
-        }
         view.findViewById<View>(R.id.btnMinimize).setOnClickListener {
-            safe("btnMinimize click") {
-                view.visibility = if (view.visibility == View.VISIBLE) View.GONE else View.VISIBLE
-            }
+            safe("btnMinimize click") { hidePanelAndDots() }
         }
         view.findViewById<View>(R.id.btnClose).setOnClickListener {
-            safe("btnClose click") { stopSelf() }
+            safe("btnClose click") {
+                Toast.makeText(this, "✓ AI Touch band ho raha hai", Toast.LENGTH_SHORT).show()
+                stopSelf()
+            }
         }
 
         wm.addView(view, params)
@@ -159,12 +242,17 @@ class OverlayService : Service() {
                             dots.add(dot)
                             addDotView(dot)
                             persistDots()
-                            Toast.makeText(this@OverlayService, "✓ Dot add: $name", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@OverlayService, "✓ Dot add ho gaya: $name", Toast.LENGTH_SHORT).show()
                         }
                     }, 300)
                 }
             }
-            .setNegativeButton("Cancel") { d, _ -> safe("cancelDot button") { d.dismiss() } }
+            .setNegativeButton("Cancel") { d, _ ->
+                safe("cancelDot button") {
+                    d.dismiss()
+                    Toast.makeText(this@OverlayService, "Cancel ho gaya", Toast.LENGTH_SHORT).show()
+                }
+            }
             .create()
 
         safe("dialog window type") { dialog.window?.setType(overlayType()) }
@@ -181,6 +269,7 @@ class OverlayService : Service() {
         val label = view.findViewById<TextView>(R.id.dotLabel)
         label.text = dot.name.take(2)
         updateDotAppearance(view, dot)
+        view.visibility = if (isPanelVisible) View.VISIBLE else View.GONE
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -305,18 +394,9 @@ class OverlayService : Service() {
                             d.dismiss()
                             Toast.makeText(this, if (dot.locked) "🔒 Locked" else "🔓 Unlocked", Toast.LENGTH_SHORT).show()
                         }
-                        1 -> {
-                            d.dismiss()
-                            showResizeDialog(view, dot)
-                        }
-                        2 -> {
-                            d.dismiss()
-                            renameDot(view, dot)
-                        }
-                        3 -> {
-                            d.dismiss()
-                            deleteDot(view, dot)
-                        }
+                        1 -> { d.dismiss(); showResizeDialog(view, dot) }
+                        2 -> { d.dismiss(); renameDot(view, dot) }
+                        3 -> { d.dismiss(); deleteDot(view, dot) }
                     }
                 }
             }
@@ -340,7 +420,6 @@ class OverlayService : Service() {
                     applyDotSize(view, dot)
                     persistDots()
                     d.dismiss()
-                    // Let them keep adjusting without re-opening the menu each time
                     reopenResizeDialog(view, dot)
                 }
             }
@@ -350,8 +429,6 @@ class OverlayService : Service() {
         safe("resize show") { dialog.show() }
     }
 
-    /** Small indirection so showResizeDialog's lambda doesn't call itself directly
-     *  (that caused a Kotlin "recursive type checking" compile error). */
     private fun reopenResizeDialog(view: View, dot: TouchDot) {
         showResizeDialog(view, dot)
     }
@@ -390,7 +467,7 @@ class OverlayService : Service() {
         dotViews.remove(dot.id)
         dots.remove(dot)
         persistDots()
-        Toast.makeText(this, "✓ Dot deleted", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "✓ Dot delete ho gaya", Toast.LENGTH_SHORT).show()
     }
 
     private fun persistDots() = safe("persistDots") {
@@ -409,12 +486,11 @@ class OverlayService : Service() {
             return
         }
         safe("runAiOnScreen") {
-            Toast.makeText(this, "⏳ Processing...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "⏳ AI analyze kar raha hai...", Toast.LENGTH_SHORT).show()
 
             // Hide everything only for a brief instant so dots/panel don't
             // appear IN the screenshot itself, then restore immediately.
-            // The panel + dots stay visible on screen the rest of the time —
-            // they no longer disappear for the whole analysis+tap duration.
+            val wasDotsVisible = isPanelVisible
             setOverlayVisibility(View.INVISIBLE)
 
             val intent = Intent(this, ScreenCaptureService::class.java)
@@ -423,17 +499,16 @@ class OverlayService : Service() {
             intent.putExtra(ScreenCaptureService.EXTRA_PROMPT, AppStore.loadPrompt(this))
             ContextCompat.startForegroundService(this, intent)
 
-            // Restore visibility almost immediately — the actual screenshot
-            // capture happens within ~300ms of the service starting, so this
-            // is just long enough to keep dots out of the captured frame.
             android.os.Handler(mainLooper).postDelayed({
-                safe("restoreVisibility-afterCapture") { setOverlayVisibility(View.VISIBLE) }
+                safe("restoreVisibility-afterCapture") {
+                    if (wasDotsVisible) setOverlayVisibility(View.VISIBLE)
+                }
             }, 400)
         }
     }
 
     fun restoreVisibilityNow() = safe("restoreVisibilityNow") {
-        setOverlayVisibility(View.VISIBLE)
+        if (isPanelVisible) setOverlayVisibility(View.VISIBLE)
     }
 
     /**
@@ -445,27 +520,19 @@ class OverlayService : Service() {
     fun hideDotBrieflyForTap(dotName: String, durationMs: Long = 350) = safe("hideDotBrieflyForTap") {
         val dot = dots.find { it.name.equals(dotName, ignoreCase = true) } ?: return@safe
         val view = dotViews[dot.id] ?: return@safe
+        val wasVisible = view.visibility == View.VISIBLE
         view.visibility = View.INVISIBLE
         android.os.Handler(mainLooper).postDelayed({
-            safe("restoreDotAfterTap") { view.visibility = View.VISIBLE }
+            safe("restoreDotAfterTap") { if (wasVisible) view.visibility = View.VISIBLE }
         }, durationMs)
-    }
-
-    /**
-     * Emergency Stop — does nothing related to AI analysis. It only
-     * force-stops the whole AI Touch service stack immediately (panel,
-     * screen capture, everything), for when the user needs to halt
-     * everything right away (e.g. mid-trade panic button). To bring it
-     * back, reopen the app and tap "PANEL START KARO" again.
-     */
-    private fun emergencyStopEverything() = safe("emergencyStopEverything") {
-        Toast.makeText(this, "⏻ AI Touch band ho raha hai...", Toast.LENGTH_SHORT).show()
-        stopService(Intent(this, ScreenCaptureService::class.java))
-        stopSelf()
     }
 
     private fun setOverlayVisibility(visibility: Int) {
         panelView?.visibility = visibility
+        dotViews.values.forEach { it.visibility = visibility }
+    }
+
+    private fun setDotsVisibility(visibility: Int) {
         dotViews.values.forEach { it.visibility = visibility }
     }
 
@@ -513,7 +580,7 @@ class OverlayService : Service() {
         }
         val notif = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("AI Touch Active")
-            .setContentText("Panel running")
+            .setContentText("Tap the floating bubble to open panel")
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .setOngoing(true)
             .build()

@@ -96,7 +96,21 @@ class MainActivity : AppCompatActivity() {
             startPanel()
         }
 
+        findViewById<Button>(R.id.btnWhatsApp).setOnClickListener {
+            openWhatsApp()
+        }
+
         updateStatus()
+    }
+
+    private fun openWhatsApp() {
+        val phone = "923062015326" // Pakistan country code + number, no leading 0
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$phone"))
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "WhatsApp nahi khul saka: ${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 
     override fun onResume() {

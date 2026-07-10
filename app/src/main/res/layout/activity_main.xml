@@ -8,286 +8,368 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="22dp">
+        android:orientation="vertical">
 
-        <!-- Header -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="26dp">
-
-            <TextView
-                android:layout_width="52dp"
-                android:layout_height="52dp"
-                android:gravity="center"
-                android:text="✨"
-                android:textSize="26sp"
-                android:background="@drawable/header_icon_bg"
-                android:layout_marginEnd="14dp" />
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="AI Touch"
-                    android:textColor="@color/white"
-                    android:textSize="24sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Screen automation, powered by AI"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Card: Backend Connection -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="@drawable/card_bg"
-            android:padding="18dp"
-            android:layout_marginBottom="14dp">
+            android:padding="22dp">
 
+            <!-- Header -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
+                android:layout_marginBottom="26dp">
+
+                <ImageView
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:src="@mipmap/ic_launcher_round"
+                    android:layout_marginEnd="14dp" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="AI Touch"
+                        android:textColor="@color/white"
+                        android:textSize="24sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Screen automation, powered by AI"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Card: Backend Connection -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/card_bg"
+                android:padding="18dp"
                 android:layout_marginBottom="14dp">
-                <TextView
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
-                    android:gravity="center"
-                    android:text="🌐"
-                    android:textSize="14sp"
-                    android:background="@drawable/section_icon_bg"
-                    android:layout_marginEnd="10dp" />
-                <TextView
-                    android:layout_width="wrap_content"
+
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Backend Connection"
-                    android:textColor="@color/accent_light"
-                    android:textStyle="bold"
-                    android:textSize="15sp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="14dp">
+                    <TextView
+                        android:layout_width="26dp"
+                        android:layout_height="26dp"
+                        android:gravity="center"
+                        android:text="🌐"
+                        android:textSize="14sp"
+                        android:background="@drawable/section_icon_bg"
+                        android:layout_marginEnd="10dp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Backend Connection"
+                        android:textColor="@color/accent_light"
+                        android:textStyle="bold"
+                        android:textSize="15sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="HF Space Backend URL"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"
+                    android:layout_marginBottom="6dp" />
+
+                <EditText
+                    android:id="@+id/etBackendUrl"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:hint="https://your-space.hf.space/analyze"
+                    android:textColorHint="#5B6B85"
+                    android:textColor="@color/white"
+                    android:textSize="13sp"
+                    android:background="@drawable/input_bg"
+                    android:paddingLeft="14dp"
+                    android:paddingRight="14dp"
+                    android:layout_marginBottom="14dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Groq API Key"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"
+                    android:layout_marginBottom="6dp" />
+
+                <EditText
+                    android:id="@+id/etGroqKey"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:hint="gsk_xxxxxxxxxxxx"
+                    android:textColorHint="#5B6B85"
+                    android:textColor="@color/white"
+                    android:textSize="13sp"
+                    android:background="@drawable/input_bg"
+                    android:paddingLeft="14dp"
+                    android:paddingRight="14dp"
+                    android:inputType="textPassword" />
             </LinearLayout>
 
-            <TextView
+            <!-- Card: AI Instruction -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="HF Space Backend URL"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                android:layout_marginBottom="6dp" />
+                android:orientation="vertical"
+                android:background="@drawable/card_bg"
+                android:padding="18dp"
+                android:layout_marginBottom="14dp">
 
-            <EditText
-                android:id="@+id/etBackendUrl"
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="4dp">
+                    <TextView
+                        android:layout_width="26dp"
+                        android:layout_height="26dp"
+                        android:gravity="center"
+                        android:text="🧠"
+                        android:textSize="14sp"
+                        android:background="@drawable/section_icon_bg"
+                        android:layout_marginEnd="10dp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="AI Instruction"
+                        android:textColor="@color/accent_light"
+                        android:textStyle="bold"
+                        android:textSize="15sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Ek baar likh dein — AI hamesha yaad rakhega"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11sp"
+                    android:layout_marginBottom="12dp"
+                    android:layout_marginStart="36dp" />
+
+                <EditText
+                    android:id="@+id/etPrompt"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minLines="4"
+                    android:gravity="top"
+                    android:hint="Misal: Jab screenshot aaye to 'Like' naam wale dot ko dhoondo aur us par tap karo."
+                    android:textColorHint="#5B6B85"
+                    android:textColor="@color/white"
+                    android:textSize="13sp"
+                    android:background="@drawable/input_bg"
+                    android:padding="14dp" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/btnSaveSettings"
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
-                android:hint="https://your-space.hf.space/analyze"
-                android:textColorHint="#5B6B85"
+                android:layout_marginBottom="20dp"
+                android:text="💾  Settings Save Karo"
                 android:textColor="@color/white"
-                android:textSize="13sp"
-                android:background="@drawable/input_bg"
-                android:paddingLeft="14dp"
-                android:paddingRight="14dp"
-                android:layout_marginBottom="14dp" />
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textAllCaps="false"
+                android:background="@drawable/button_primary_bg"
+                android:elevation="2dp" />
 
-            <TextView
+            <!-- Card: Permissions -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Groq API Key"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                android:layout_marginBottom="6dp" />
+                android:orientation="vertical"
+                android:background="@drawable/card_bg"
+                android:padding="18dp"
+                android:layout_marginBottom="20dp">
 
-            <EditText
-                android:id="@+id/etGroqKey"
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="14dp">
+                    <TextView
+                        android:layout_width="26dp"
+                        android:layout_height="26dp"
+                        android:gravity="center"
+                        android:text="🔐"
+                        android:textSize="14sp"
+                        android:background="@drawable/section_icon_bg"
+                        android:layout_marginEnd="10dp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Permissions"
+                        android:textColor="@color/accent_light"
+                        android:textStyle="bold"
+                        android:textSize="15sp" />
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/btnOverlayPermission"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginBottom="10dp"
+                    android:text="Overlay Permission"
+                    android:textColor="@color/white"
+                    android:textSize="13sp"
+                    android:textAllCaps="false"
+                    android:background="@drawable/button_secondary_bg" />
+
+                <Button
+                    android:id="@+id/btnAccessibilityPermission"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginBottom="10dp"
+                    android:text="Accessibility Service"
+                    android:textColor="@color/white"
+                    android:textSize="13sp"
+                    android:textAllCaps="false"
+                    android:background="@drawable/button_secondary_bg" />
+
+                <Button
+                    android:id="@+id/btnNotifPermission"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="Notification Permission"
+                    android:textColor="@color/white"
+                    android:textSize="13sp"
+                    android:textAllCaps="false"
+                    android:background="@drawable/button_secondary_bg" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/btnStartPanel"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:hint="gsk_xxxxxxxxxxxx"
-                android:textColorHint="#5B6B85"
+                android:layout_height="60dp"
+                android:text="🚀  PANEL START KARO"
                 android:textColor="@color/white"
-                android:textSize="13sp"
-                android:background="@drawable/input_bg"
-                android:paddingLeft="14dp"
-                android:paddingRight="14dp"
-                android:inputType="textPassword" />
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textAllCaps="false"
+                android:background="@drawable/button_primary_bg"
+                android:elevation="4dp" />
+
+            <!-- Status Card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/card_bg"
+                android:padding="16dp"
+                android:layout_marginTop="16dp">
+
+                <TextView
+                    android:id="@+id/tvStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:lineSpacingExtra="4dp" />
+            </LinearLayout>
+
+            <!-- Help / Support Card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/card_bg"
+                android:padding="18dp"
+                android:layout_marginTop="14dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="10dp">
+                    <TextView
+                        android:layout_width="26dp"
+                        android:layout_height="26dp"
+                        android:gravity="center"
+                        android:text="💬"
+                        android:textSize="14sp"
+                        android:background="@drawable/section_icon_bg"
+                        android:layout_marginEnd="10dp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Help &amp; Support"
+                        android:textColor="@color/accent_light"
+                        android:textStyle="bold"
+                        android:textSize="15sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Maloomat ya donation ke liye WhatsApp karein:"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"
+                    android:layout_marginBottom="12dp" />
+
+                <Button
+                    android:id="@+id/btnWhatsApp"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:text="💬  WhatsApp: 0306-2015326"
+                    android:textColor="@color/white"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textAllCaps="false"
+                    android:background="@drawable/button_whatsapp_bg" />
+            </LinearLayout>
+
         </LinearLayout>
 
-        <!-- Card: AI Instruction -->
+        <!-- Footer -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="@drawable/card_bg"
-            android:padding="18dp"
-            android:layout_marginBottom="14dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="4dp">
-                <TextView
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
-                    android:gravity="center"
-                    android:text="🧠"
-                    android:textSize="14sp"
-                    android:background="@drawable/section_icon_bg"
-                    android:layout_marginEnd="10dp" />
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="AI Instruction"
-                    android:textColor="@color/accent_light"
-                    android:textStyle="bold"
-                    android:textSize="15sp" />
-            </LinearLayout>
+            android:gravity="center"
+            android:background="@drawable/footer_bg"
+            android:padding="18dp">
 
             <TextView
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Ek baar likh dein — AI hamesha yaad rakhega"
+                android:text="Developed by Muaaz Iqbal"
+                android:textColor="@color/accent_light"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Muslim Islam Organization"
                 android:textColor="@color/text_secondary"
                 android:textSize="11sp"
-                android:layout_marginBottom="12dp"
-                android:layout_marginStart="36dp" />
-
-            <EditText
-                android:id="@+id/etPrompt"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:minLines="4"
-                android:gravity="top"
-                android:hint="Misal: Jab screenshot aaye to 'Like' naam wale dot ko dhoondo aur us par tap karo."
-                android:textColorHint="#5B6B85"
-                android:textColor="@color/white"
-                android:textSize="13sp"
-                android:background="@drawable/input_bg"
-                android:padding="14dp" />
-        </LinearLayout>
-
-        <Button
-            android:id="@+id/btnSaveSettings"
-            android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:layout_marginBottom="20dp"
-            android:text="💾  Settings Save Karo"
-            android:textColor="@color/white"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:textAllCaps="false"
-            android:background="@drawable/button_primary_bg"
-            android:elevation="2dp" />
-
-        <!-- Card: Permissions -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/card_bg"
-            android:padding="18dp"
-            android:layout_marginBottom="20dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="14dp">
-                <TextView
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
-                    android:gravity="center"
-                    android:text="🔐"
-                    android:textSize="14sp"
-                    android:background="@drawable/section_icon_bg"
-                    android:layout_marginEnd="10dp" />
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Permissions"
-                    android:textColor="@color/accent_light"
-                    android:textStyle="bold"
-                    android:textSize="15sp" />
-            </LinearLayout>
-
-            <Button
-                android:id="@+id/btnOverlayPermission"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginBottom="10dp"
-                android:text="Overlay Permission"
-                android:textColor="@color/white"
-                android:textSize="13sp"
-                android:textAllCaps="false"
-                android:background="@drawable/button_secondary_bg" />
-
-            <Button
-                android:id="@+id/btnAccessibilityPermission"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginBottom="10dp"
-                android:text="Accessibility Service"
-                android:textColor="@color/white"
-                android:textSize="13sp"
-                android:textAllCaps="false"
-                android:background="@drawable/button_secondary_bg" />
-
-            <Button
-                android:id="@+id/btnNotifPermission"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:text="Notification Permission"
-                android:textColor="@color/white"
-                android:textSize="13sp"
-                android:textAllCaps="false"
-                android:background="@drawable/button_secondary_bg" />
-        </LinearLayout>
-
-        <Button
-            android:id="@+id/btnStartPanel"
-            android:layout_width="match_parent"
-            android:layout_height="60dp"
-            android:text="🚀  PANEL START KARO"
-            android:textColor="@color/white"
-            android:textSize="15sp"
-            android:textStyle="bold"
-            android:textAllCaps="false"
-            android:background="@drawable/button_primary_bg"
-            android:elevation="4dp" />
-
-        <!-- Status Card -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/card_bg"
-            android:padding="16dp"
-            android:layout_marginTop="16dp">
-
-            <TextView
-                android:id="@+id/tvStatus"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text=""
-                android:textColor="@color/text_secondary"
-                android:textSize="13sp"
-                android:lineSpacingExtra="4dp" />
+                android:layout_marginTop="2dp" />
         </LinearLayout>
 
     </LinearLayout>
