@@ -101,6 +101,11 @@ object BackendClient {
                 }
 
                 val dotName = json.optString("dot", "")
+                val debugRaw = json.optString("_debug_raw", "")
+                if (debugRaw.isNotBlank()) {
+                    postToast(context, "🤖 AI: $debugRaw")
+                }
+
                 if (dotName.isBlank()) {
                     postToast(context, "ℹ️ AI: koi action nahi")
                     return null
