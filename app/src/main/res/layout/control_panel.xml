@@ -48,6 +48,16 @@
         android:textSize="15sp"
         android:background="@drawable/panel_icon_ripple" />
 
+    <TextView
+        android:id="@+id/btnFeedback"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:gravity="center"
+        android:text="📊"
+        android:textColor="#60A5FA"
+        android:textSize="14sp"
+        android:background="@drawable/panel_icon_ripple" />
+
     <View
         android:layout_width="1dp"
         android:layout_height="18dp"

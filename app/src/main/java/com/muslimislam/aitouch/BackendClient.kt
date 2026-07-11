@@ -13,8 +13,10 @@ import java.util.concurrent.TimeUnit
 /**
  * Backend returns the simplest possible shape: just a dot name.
  * {"dot": "b"} means tap the dot named "b". {"dot": ""} means do nothing.
- * The backend also keeps its own history server-side to improve future
- * decisions, and verifies an access PIN set as an HF Space secret.
+ * Also carries a "description" field (the AI's plain-text visual read of
+ * the chart) which the app can later send back via sendFeedback() once the
+ * trade result (win/loss) is known, so the backend can flag similar losing
+ * setups in future analyses.
  */
 object BackendClient {
 
@@ -23,6 +25,13 @@ object BackendClient {
         .readTimeout(60, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
+
+    /** Kept in memory so the Feedback button can reference the most recent
+     *  analysis without the caller needing to thread it through manually. */
+    var lastDescription: String? = null
+        private set
+    var lastDotChosen: String? = null
+        private set
 
     /** Derives the base URL (without /analyze) from whatever the user saved. */
     private fun baseUrl(backendUrl: String): String {
@@ -102,6 +111,9 @@ object BackendClient {
 
                 val dotName = json.optString("dot", "")
                 val debugRaw = json.optString("_debug_raw", "")
+                lastDescription = json.optString("description", "").ifBlank { null }
+                lastDotChosen = dotName.ifBlank { null }
+
                 if (debugRaw.isNotBlank()) {
                     postToast(context, "🤖 AI: $debugRaw")
                 }
@@ -117,6 +129,72 @@ object BackendClient {
             postToast(context, "Network error: ${e.message}")
             null
         }
+    }
+
+    /**
+     * Reports a trade result (win/loss) for the most recent analysis back
+     * to the backend, so it can warn about similar losing chart setups in
+     * future analyses. Safe to call even if there's no recent analysis —
+     * it'll just show a message and do nothing.
+     */
+    fun sendFeedback(context: Context, result: String, onDone: (Boolean, String?) -> Unit) {
+        val description = lastDescription
+        if (description.isNullOrBlank()) {
+            onDone(false, "Koi recent analysis nahi mila")
+            return
+        }
+
+        val backendUrl = AppStore.loadBackendUrl(context)
+        val pin = AppStore.loadPin(context)
+        val url = baseUrl(backendUrl) + "/feedback"
+
+        val body = JSONObject().apply {
+            put("description", description)
+            put("result", result)
+            put("dot", lastDotChosen ?: "")
+            put("pin", pin)
+        }
+        val requestBody = body.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+        val request = Request.Builder().url(url).post(requestBody).build()
+
+        Thread {
+            try {
+                client.newCall(request).execute().use { response ->
+                    val ok = response.isSuccessful
+                    android.os.Handler(context.mainLooper).post {
+                        onDone(ok, if (!ok) "Feedback save nahi hua (${response.code})" else null)
+                    }
+                }
+            } catch (e: Exception) {
+                android.os.Handler(context.mainLooper).post {
+                    onDone(false, "Network error: ${e.message}")
+                }
+            }
+        }.start()
+    }
+
+    /** Fetches simple win/loss stats from the backend, e.g. for display. */
+    fun fetchStats(context: Context, onResult: (wins: Int, losses: Int, winRate: Double) -> Unit) {
+        val backendUrl = AppStore.loadBackendUrl(context)
+        val url = baseUrl(backendUrl) + "/feedback/stats"
+        val request = Request.Builder().url(url).get().build()
+
+        Thread {
+            try {
+                client.newCall(request).execute().use { response ->
+                    val responseText = response.body?.string() ?: ""
+                    val json = try { JSONObject(responseText) } catch (_: Exception) { JSONObject() }
+                    val wins = json.optInt("wins", 0)
+                    val losses = json.optInt("losses", 0)
+                    val winRate = json.optDouble("win_rate_percent", 0.0)
+                    android.os.Handler(context.mainLooper).post {
+                        onResult(wins, losses, winRate)
+                    }
+                }
+            } catch (_: Exception) {
+                android.os.Handler(context.mainLooper).post { onResult(0, 0, 0.0) }
+            }
+        }.start()
     }
 
     private fun postToast(context: Context, msg: String) {

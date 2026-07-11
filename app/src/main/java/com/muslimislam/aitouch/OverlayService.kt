@@ -200,6 +200,9 @@ class OverlayService : Service() {
         view.findViewById<View>(R.id.btnCapture).setOnClickListener {
             safe("btnCapture click") { runAiOnScreen() }
         }
+        view.findViewById<View>(R.id.btnFeedback).setOnClickListener {
+            safe("btnFeedback click") { showFeedbackDialog() }
+        }
         view.findViewById<View>(R.id.btnMinimize).setOnClickListener {
             safe("btnMinimize click") { hidePanelAndDots() }
         }
@@ -244,6 +247,64 @@ class OverlayService : Service() {
                 params.x = bp?.x ?: 40
                 params.y = (bp?.y ?: 120) + 70
                 wm.addView(panel, params)
+            }
+        }
+    }
+
+    private fun showFeedbackDialog() = safe("showFeedbackDialog") {
+        if (BackendClient.lastDescription == null) {
+            Toast.makeText(this, "❌ Pehle 'AI Run' se ek analysis karein", Toast.LENGTH_LONG).show()
+            return@safe
+        }
+
+        val options = arrayOf("✅ Win (profit hua)", "❌ Loss (loss hua)", "📊 Stats dekhein")
+        val dialog = AlertDialog.Builder(this, androidx.appcompat.R.style.Theme_AppCompat_Dialog_Alert)
+            .setTitle("Pichle trade ka result")
+            .setItems(options) { d, which ->
+                safe("feedback choice") {
+                    d.dismiss()
+                    when (which) {
+                        0 -> reportResult("win")
+                        1 -> reportResult("loss")
+                        2 -> showStats()
+                    }
+                }
+            }
+            .create()
+
+        safe("feedback window type") { dialog.window?.setType(overlayType()) }
+        safe("feedback show") { dialog.show() }
+    }
+
+    private fun reportResult(result: String) = safe("reportResult") {
+        Toast.makeText(this, "⏳ Save ho raha hai...", Toast.LENGTH_SHORT).show()
+        BackendClient.sendFeedback(this, result) { success, error ->
+            safe("feedback callback") {
+                if (success) {
+                    val label = if (result == "win") "✅ Win" else "❌ Loss"
+                    Toast.makeText(this, "$label save ho gaya — agli baar AI is se seekhega", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(this, "❌ ${error ?: "Feedback save nahi hua"}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    private fun showStats() = safe("showStats") {
+        BackendClient.fetchStats(this) { wins, losses, winRate ->
+            safe("stats callback") {
+                val total = wins + losses
+                val msg = if (total == 0)
+                    "Abhi tak koi feedback record nahi hai."
+                else
+                    "📊 Wins: $wins | Losses: $losses\nWin Rate: $winRate%"
+                AlertDialog.Builder(this, androidx.appcompat.R.style.Theme_AppCompat_Dialog_Alert)
+                    .setTitle("Trading Stats")
+                    .setMessage(msg)
+                    .setPositiveButton("OK", null)
+                    .create()
+                    .also { d -> safe("stats dialog type") { d.window?.setType(overlayType()) } }
+                    .show()
             }
         }
     }
