@@ -32,6 +32,7 @@ class ScreenCaptureService : Service() {
         const val NOTIF_ID = 1002
         const val ACTION_START = "action_start"
         const val ACTION_CAPTURE_AND_ANALYZE = "action_capture_and_analyze"
+        const val ACTION_CAPTURE_FOR_PATTERN = "action_capture_for_pattern"
         const val EXTRA_RESULT_CODE = "result_code"
         const val EXTRA_RESULT_DATA = "result_data"
         const val EXTRA_DOTS_JSON = "dots_json"
@@ -64,6 +65,9 @@ class ScreenCaptureService : Service() {
                 val dotsJson = intent.getStringExtra(EXTRA_DOTS_JSON) ?: "[]"
                 val prompt = intent.getStringExtra(EXTRA_PROMPT) ?: ""
                 captureAndSend(dotsJson, prompt)
+            }
+            ACTION_CAPTURE_FOR_PATTERN -> {
+                captureForPatternMatch()
             }
         }
         return START_STICKY
@@ -118,6 +122,52 @@ class ScreenCaptureService : Service() {
             }
             virtualDisplay?.release()
             imageReader?.close()
+        }, 300)
+    }
+
+    private fun captureForPatternMatch() {
+        val proj = projection ?: run {
+            OverlayService.instance?.onPatternMatchFailed("Screen capture ready nahi")
+            return
+        }
+        val metrics = DisplayMetrics()
+        val wm = getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
+        @Suppress("DEPRECATION")
+        wm.defaultDisplay.getRealMetrics(metrics)
+
+        val width = metrics.widthPixels
+        val height = metrics.heightPixels
+        val density = metrics.densityDpi
+
+        val reader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
+        val display = proj.createVirtualDisplay(
+            "AITouchPatternCapture",
+            width, height, density,
+            android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+            reader.surface, null, null
+        )
+
+        android.os.Handler(mainLooper).postDelayed({
+            val image = reader.acquireLatestImage()
+            if (image != null) {
+                val bitmap = imageToBitmap(image, width, height)
+                image.close()
+
+                CoroutineScope(Dispatchers.IO).launch {
+                    val result = PatternClient.analyzePattern(this@ScreenCaptureService, bitmap)
+                    android.os.Handler(mainLooper).post {
+                        if (result != null) {
+                            OverlayService.instance?.onPatternMatchResult(result)
+                        } else {
+                            OverlayService.instance?.onPatternMatchFailed("Match nahi mila")
+                        }
+                    }
+                }
+            } else {
+                OverlayService.instance?.onPatternMatchFailed("Screenshot capture fail hui")
+            }
+            display?.release()
+            reader.close()
         }, 300)
     }
 

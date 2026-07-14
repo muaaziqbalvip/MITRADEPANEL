@@ -203,6 +203,9 @@ class OverlayService : Service() {
         view.findViewById<View>(R.id.btnFeedback).setOnClickListener {
             safe("btnFeedback click") { showFeedbackDialog() }
         }
+        view.findViewById<View>(R.id.btnPatternMatch).setOnClickListener {
+            safe("btnPatternMatch click") { runPatternMatch() }
+        }
         view.findViewById<View>(R.id.btnMinimize).setOnClickListener {
             safe("btnMinimize click") { hidePanelAndDots() }
         }
@@ -608,6 +611,68 @@ class OverlayService : Service() {
 
     fun restoreVisibilityNow() = safe("restoreVisibilityNow") {
         if (isPanelVisible) setOverlayVisibility(View.VISIBLE)
+    }
+
+    // ---------------- Pattern Match (separate, non-AI image matching) ----------------
+
+    private fun runPatternMatch() {
+        if (!ScreenCaptureService.isReady) {
+            Toast.makeText(this, "❌ Screen capture ready nahi", Toast.LENGTH_LONG).show()
+            return
+        }
+        safe("runPatternMatch") {
+            Toast.makeText(this, "🔍 Pattern dhoond rahe hain...", Toast.LENGTH_SHORT).show()
+
+            val wasVisible = isPanelVisible
+            setOverlayVisibility(View.INVISIBLE)
+
+            val intent = Intent(this, ScreenCaptureService::class.java)
+            intent.action = ScreenCaptureService.ACTION_CAPTURE_FOR_PATTERN
+            ContextCompat.startForegroundService(this, intent)
+
+            android.os.Handler(mainLooper).postDelayed({
+                safe("restorePatternVisibility") {
+                    if (wasVisible) setOverlayVisibility(View.VISIBLE)
+                }
+            }, 400)
+        }
+    }
+
+    fun onPatternMatchResult(result: PatternClient.PatternMatchResult) = safe("onPatternMatchResult") {
+        val inflater = LayoutInflater.from(this)
+        val dialogView = inflater.inflate(R.layout.dialog_pattern_result, null)
+
+        val outcomeEmoji = when (result.outcomeHint) {
+            "win" -> "✅"
+            "loss" -> "❌"
+            else -> "ℹ️"
+        }
+        dialogView.findViewById<TextView>(R.id.tvPatternSummary).text =
+            "🔍 Match: ${result.similarityPercent}% — $outcomeEmoji ${result.outcomeHint} (${result.matchedReference})"
+
+        result.annotatedImage?.let {
+            dialogView.findViewById<android.widget.ImageView>(R.id.imgAnnotated).setImageBitmap(it)
+        }
+        val nextImgView = dialogView.findViewById<android.widget.ImageView>(R.id.imgNextCandles)
+        val nextLabel = dialogView.findViewById<TextView>(R.id.tvNextCandlesLabel)
+        if (result.nextCandlesImage != null) {
+            nextImgView.setImageBitmap(result.nextCandlesImage)
+        } else {
+            nextLabel.text = "Aage kya hua: match chart ke aakhir tak pahunch gaya, aage kuch nahi hai"
+            nextImgView.visibility = View.GONE
+        }
+
+        val dialog = AlertDialog.Builder(this, androidx.appcompat.R.style.Theme_AppCompat_Dialog_Alert)
+            .setView(dialogView)
+            .setPositiveButton("Band Karo", null)
+            .create()
+
+        safe("pattern result window type") { dialog.window?.setType(overlayType()) }
+        safe("pattern result show") { dialog.show() }
+    }
+
+    fun onPatternMatchFailed(message: String) = safe("onPatternMatchFailed") {
+        Toast.makeText(this, "❌ $message", Toast.LENGTH_LONG).show()
     }
 
     /**
