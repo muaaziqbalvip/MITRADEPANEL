@@ -1,4 +1,3 @@
 <resources>
-    <string name="app_name">AI Touch</string>
-    <string name="accessibility_service_description">AI Touch ko screen par real taps perform karne aur AI ke faislon par amal karne ki ijazat deta hai.</string>
+    <string name="app_name">Pattern Matcher</string>
 </resources>

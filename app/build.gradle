@@ -4,15 +4,15 @@ plugins {
 }
 
 android {
-    namespace 'com.muslimislam.aitouch'
+    namespace 'com.muslimislam.patternmatcher'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.muslimislam.aitouch"
+        applicationId "com.muslimislam.patternmatcher"
         minSdk 26
         targetSdk 34
         versionCode 1
-        versionName "2.0"
+        versionName "1.0"
     }
 
     buildTypes {

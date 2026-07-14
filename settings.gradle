@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "AITouchApp"
+rootProject.name = "PatternMatcherApp"
 include ':app'
